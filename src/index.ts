@@ -26,20 +26,10 @@ wsStrategy.setSocketIO(io);
 app.use("/api", mesaRoutes);
 
 // Manejo de errores
-app.use(
-  (
-    err: Error,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    console.error(err.stack);
-    res.status(500).json({ error: "Error interno del servidor" });
-  }
-);
+app.use((err: Error, req: express.Request, res: express.Response) => {
+  res.status(500).json({ error: "Error interno del servidor" });
+});
 
 const PORT = process.env.PORT || 3000;
 
-httpServer.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
+httpServer.listen(PORT, () => {});

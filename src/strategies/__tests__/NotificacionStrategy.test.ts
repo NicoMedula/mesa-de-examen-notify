@@ -13,7 +13,7 @@ describe("NotificacionStrategy", () => {
 
   it("debería lanzar error si Socket.IO no está inicializado", async () => {
     const wsStrategy = WebSocketNotificacionStrategy.getInstance();
-    wsStrategy.setSocketIO(undefined as any);
+    wsStrategy.setSocketIO(undefined);
     await expect(wsStrategy.enviar(notificacion)).rejects.toThrow(
       "Socket.IO no inicializado"
     );

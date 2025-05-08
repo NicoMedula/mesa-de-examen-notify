@@ -10,7 +10,7 @@ export class MesaRepository {
 
   private constructor() {
     this.dataPath = path.join(__dirname, "../data/mesas.json");
-    console.log("Ruta de mesas.json:", this.dataPath); // LOG de ruta
+    // console.log("Ruta de mesas.json:", this.dataPath); // LOG de ruta
   }
 
   public static getInstance(): MesaRepository {
@@ -22,7 +22,7 @@ export class MesaRepository {
 
   private readData(): MesasData {
     const data = fs.readFileSync(this.dataPath, "utf-8");
-    console.log("Contenido bruto leído:", data); // LOG de contenido
+    // console.log("Contenido bruto leído:", data); // LOG de contenido
     return JSON.parse(data);
   }
 
@@ -32,7 +32,7 @@ export class MesaRepository {
 
   public getAllMesas(): Mesa[] {
     const mesas = this.readData().mesas;
-    console.log("Mesas leídas:", mesas); // LOG de mesas
+    // console.log("Mesas leídas:", mesas); // LOG de mesas
     return mesas;
   }
 
@@ -41,7 +41,7 @@ export class MesaRepository {
     const filtradas = mesas.filter((mesa) =>
       mesa.docentes.some((docente) => docente.id === docenteId)
     );
-    console.log(`Buscando mesas para docente ${docenteId}:`, filtradas); // LOG de búsqueda
+    // console.log(`Buscando mesas para docente ${docenteId}:`, filtradas); // LOG de búsqueda
     return filtradas;
   }
 

@@ -1,6 +1,5 @@
 import { MesaService } from "../MesaService";
 import { ConsoleNotificacionStrategy } from "../../strategies/NotificacionStrategy";
-import { Mesa } from "../../types";
 
 describe("MesaService", () => {
   let mesaService: MesaService;
