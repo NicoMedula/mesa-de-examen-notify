@@ -31,7 +31,7 @@ app.use(
     err: Error,
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    _next: express.NextFunction
   ) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
