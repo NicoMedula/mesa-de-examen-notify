@@ -32,4 +32,6 @@ app.use((err: Error, req: express.Request, res: express.Response) => {
 
 const PORT = process.env.PORT || 3000;
 
-httpServer.listen(PORT, () => {});
+httpServer.listen(PORT, () => {
+  // Servidor iniciado
+});

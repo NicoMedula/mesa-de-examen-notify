@@ -5,12 +5,18 @@ export interface NotificacionStrategy {
   enviar(notificacion: Notificacion): Promise<void>;
 }
 
+interface SocketIO {
+  emit: (event: string, ...args: unknown[]) => void;
+}
+
 // Patrón Singleton: Única instancia de WebSocketNotificacionStrategy
 export class WebSocketNotificacionStrategy implements NotificacionStrategy {
   private static instance: WebSocketNotificacionStrategy;
-  private io: unknown;
+  private io: SocketIO | undefined;
 
-  private constructor() {}
+  private constructor() {
+    // Constructor vacío intencionalmente para Singleton
+  }
 
   public static getInstance(): WebSocketNotificacionStrategy {
     if (!WebSocketNotificacionStrategy.instance) {
@@ -20,15 +26,15 @@ export class WebSocketNotificacionStrategy implements NotificacionStrategy {
     return WebSocketNotificacionStrategy.instance;
   }
 
-  public setSocketIO(io: unknown): void {
+  public setSocketIO(io: SocketIO | undefined): void {
     this.io = io;
   }
 
   public async enviar(notificacion: Notificacion): Promise<void> {
-    if (!this.io || typeof (this.io as any).emit !== "function") {
+    if (!this.io) {
       throw new Error("Socket.IO no inicializado");
     }
-    (this.io as any).emit("notificacion", notificacion);
+    this.io.emit("notificacion", notificacion);
   }
 }
 

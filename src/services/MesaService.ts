@@ -1,4 +1,4 @@
-import { Mesa, Docente } from "../types";
+import { Mesa } from "../types";
 import { MesaRepository } from "../repositories/MesaRepository";
 import { NotificacionFactory } from "../factories/NotificacionFactory";
 import {
