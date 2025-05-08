@@ -1,14 +1,14 @@
-import { MesaRepository } from '../MesaRepository';
-import * as fs from 'fs';
-import * as path from 'path';
+import { MesaRepository } from "../MesaRepository";
+import * as fs from "fs";
+import * as path from "path";
 
-describe('MesaRepository', () => {
+describe("MesaRepository", () => {
   let repo: MesaRepository;
-  const dataPath = path.join(__dirname, '../../data/mesas.json');
+  const dataPath = path.join(__dirname, "../../data/mesas.json");
   let originalData: string;
 
   beforeAll(() => {
-    originalData = fs.readFileSync(dataPath, 'utf-8');
+    originalData = fs.readFileSync(dataPath, "utf-8");
   });
 
   afterAll(() => {
@@ -19,11 +19,15 @@ describe('MesaRepository', () => {
     repo = MesaRepository.getInstance();
   });
 
-  it('debería lanzar error si la mesa no existe', () => {
-    expect(() => repo.updateConfirmacion('NO_EXISTE', '123', 'aceptado')).toThrow('Mesa no encontrada');
+  it("debería lanzar error si la mesa no existe", () => {
+    expect(() =>
+      repo.updateConfirmacion("NO_EXISTE", "123", "aceptado")
+    ).toThrow("Mesa no encontrada");
   });
 
-  it('debería lanzar error si el docente no existe en la mesa', () => {
-    expect(() => repo.updateConfirmacion('M1', 'NO_EXISTE', 'aceptado')).toThrow('Docente no encontrado en la mesa');
+  it("debería lanzar error si el docente no existe en la mesa", () => {
+    expect(() =>
+      repo.updateConfirmacion("M1", "NO_EXISTE", "aceptado")
+    ).toThrow("Docente no encontrado en la mesa");
   });
-}); 
+});
