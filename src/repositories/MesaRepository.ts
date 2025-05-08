@@ -17,6 +17,7 @@ export class MesaRepository {
     if (!MesaRepository.instance) {
       MesaRepository.instance = new MesaRepository();
     }
+
     return MesaRepository.instance;
   }
 
