@@ -1,14 +1,20 @@
 import { MesaService } from "../MesaService";
-import { ConsoleNotificacionStrategy } from "../../strategies/NotificacionStrategy";
+import { ConsoleNotificacionStrategy, NotificacionStrategy } from "../../strategies/NotificacionStrategy";
 
 describe("MesaService", () => {
   let mesaService: MesaService;
   let consoleStrategy: ConsoleNotificacionStrategy;
+  let mockNotificacionStrategy: NotificacionStrategy;
 
   beforeEach(() => {
     mesaService = MesaService.getInstance();
     consoleStrategy = new ConsoleNotificacionStrategy();
     mesaService.setNotificacionStrategy(consoleStrategy);
+    // Creamos un mock para la estrategia de notificación
+    mockNotificacionStrategy = {
+      enviar: jest.fn().mockResolvedValue(undefined),
+    };
+    mesaService.setNotificacionStrategy(mockNotificacionStrategy);
   });
 
   describe("getMesasByDocenteId", () => {
@@ -56,6 +62,12 @@ describe("MesaService", () => {
       await expect(
         mesaService.confirmarMesa("M3", "123", "aceptado")
       ).rejects.toThrow("La mesa debe confirmarse con al menos 48 horas de anticipación.");
+    });
+
+    it("debería llamar a la estrategia de notificación al confirmar una mesa", async () => {
+      // Usamos una mesa existente y docente existente
+      await mesaService.confirmarMesa("M1", "123", "aceptado");
+      expect(mockNotificacionStrategy.enviar).toHaveBeenCalled();
     });
   });
 
