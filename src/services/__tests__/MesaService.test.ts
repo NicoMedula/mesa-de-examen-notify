@@ -38,6 +38,25 @@ describe("MesaService", () => {
       const docente = mesa.docentes.find((d) => d.id === "123");
       expect(docente?.confirmacion).toBe("rechazado");
     });
+
+    it("debería lanzar error si la mesa es en menos de 48 horas", async () => {
+      const mesas = require("../../data/mesas.json");
+      mesas.mesas.push({
+        id: "M3",
+        fecha: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // Mañana
+        hora: new Date().toTimeString().slice(0, 5), // Ahora
+        ubicacion: "Aula 10",
+        docentes: [
+          { id: "123", nombre: "Prof. Test", confirmacion: "pendiente" }
+        ]
+      });
+      const fs = require("fs");
+      fs.writeFileSync(require("path").join(__dirname, "../../data/mesas.json"), JSON.stringify(mesas, null, 2));
+
+      await expect(
+        mesaService.confirmarMesa("M3", "123", "aceptado")
+      ).rejects.toThrow("La mesa debe confirmarse con al menos 48 horas de anticipación.");
+    });
   });
 
   describe("enviarRecordatorio", () => {
