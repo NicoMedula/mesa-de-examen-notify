@@ -9,7 +9,7 @@
         {
           "id": "123",
           "nombre": "Prof. Gómez",
-          "confirmacion": "aceptado"
+          "confirmacion": "rechazado"
         },
         {
           "id": "456",
@@ -33,6 +33,19 @@
           "id": "789",
           "nombre": "Prof. Rodríguez",
           "confirmacion": "aceptado"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "fecha": "2025-05-11",
+      "hora": "15:24",
+      "ubicacion": "Aula 10",
+      "docentes": [
+        {
+          "id": "123",
+          "nombre": "Prof. Test",
+          "confirmacion": "pendiente"
         }
       ]
     }
