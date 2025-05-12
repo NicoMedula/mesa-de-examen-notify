@@ -3,6 +3,9 @@ import {
   ConsoleNotificacionStrategy,
   NotificacionStrategy,
 } from "../../strategies/NotificacionStrategy";
+import mesasData from "../../data/mesas.json"; // ✅ importar JSON correctamente
+import * as fs from "fs";                      // ✅ importar módulos correctamente
+import * as path from "path";                  // ✅ importar módulos correctamente
 
 describe("MesaService", () => {
   let mesaService: MesaService;
@@ -49,21 +52,21 @@ describe("MesaService", () => {
     });
 
     it("debería lanzar error si la mesa es en menos de 48 horas", async () => {
-      const mesas = require("../../data/mesas.json");
+      const mesas = JSON.parse(JSON.stringify(mesasData)); // Clonamos para no afectar el import
       mesas.mesas.push({
         id: "M3",
         fecha: new Date(Date.now() + 24 * 60 * 60 * 1000)
           .toISOString()
-          .slice(0, 10), // Mañana
-        hora: new Date().toTimeString().slice(0, 5), // Ahora
+          .slice(0, 10),
+        hora: new Date().toTimeString().slice(0, 5),
         ubicacion: "Aula 10",
         docentes: [
           { id: "123", nombre: "Prof. Test", confirmacion: "pendiente" },
         ],
       });
-      const fs = require("fs");
+
       fs.writeFileSync(
-        require("path").join(__dirname, "../../data/mesas.json"),
+        path.join(__dirname, "../../data/mesas.json"),
         JSON.stringify(mesas, null, 2)
       );
 
@@ -75,7 +78,6 @@ describe("MesaService", () => {
     });
 
     it("debería llamar a la estrategia de notificación al confirmar una mesa", async () => {
-      // Usamos una mesa existente y docente existente
       await mesaService.confirmarMesa("M1", "123", "aceptado");
       expect(mockNotificacionStrategy.enviar).toHaveBeenCalled();
     });
