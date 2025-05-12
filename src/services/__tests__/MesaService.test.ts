@@ -4,8 +4,8 @@ import {
   NotificacionStrategy,
 } from "../../strategies/NotificacionStrategy";
 import mesasData from "../../data/mesas.json"; // ✅ importar JSON correctamente
-import * as fs from "fs";                      // ✅ importar módulos correctamente
-import * as path from "path";                  // ✅ importar módulos correctamente
+import * as fs from "fs"; // ✅ importar módulos correctamente
+import * as path from "path"; // ✅ importar módulos correctamente
 
 describe("MesaService", () => {
   let mesaService: MesaService;
