@@ -1,5 +1,8 @@
 import { MesaService } from "../MesaService";
-import { ConsoleNotificacionStrategy, NotificacionStrategy } from "../../strategies/NotificacionStrategy";
+import {
+  ConsoleNotificacionStrategy,
+  NotificacionStrategy,
+} from "../../strategies/NotificacionStrategy";
 
 describe("MesaService", () => {
   let mesaService: MesaService;
@@ -49,19 +52,26 @@ describe("MesaService", () => {
       const mesas = require("../../data/mesas.json");
       mesas.mesas.push({
         id: "M3",
-        fecha: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // Mañana
+        fecha: new Date(Date.now() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10), // Mañana
         hora: new Date().toTimeString().slice(0, 5), // Ahora
         ubicacion: "Aula 10",
         docentes: [
-          { id: "123", nombre: "Prof. Test", confirmacion: "pendiente" }
-        ]
+          { id: "123", nombre: "Prof. Test", confirmacion: "pendiente" },
+        ],
       });
       const fs = require("fs");
-      fs.writeFileSync(require("path").join(__dirname, "../../data/mesas.json"), JSON.stringify(mesas, null, 2));
+      fs.writeFileSync(
+        require("path").join(__dirname, "../../data/mesas.json"),
+        JSON.stringify(mesas, null, 2)
+      );
 
       await expect(
         mesaService.confirmarMesa("M3", "123", "aceptado")
-      ).rejects.toThrow("La mesa debe confirmarse con al menos 48 horas de anticipación.");
+      ).rejects.toThrow(
+        "La mesa debe confirmarse con al menos 48 horas de anticipación."
+      );
     });
 
     it("debería llamar a la estrategia de notificación al confirmar una mesa", async () => {

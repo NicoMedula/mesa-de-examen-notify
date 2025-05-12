@@ -54,7 +54,9 @@ export class MesaService {
     const ahora = new Date();
     const margen48h = 48 * 60 * 60 * 1000; // 48 horas en ms
     if (fechaHoraMesa.getTime() - ahora.getTime() < margen48h) {
-      throw new Error("La mesa debe confirmarse con al menos 48 horas de anticipación.");
+      throw new Error(
+        "La mesa debe confirmarse con al menos 48 horas de anticipación."
+      );
     }
 
     // Continuar con la lógica original
