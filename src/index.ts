@@ -4,6 +4,8 @@ import { Server } from "socket.io";
 import cors from "cors";
 import mesaRoutes from "./routes/mesaRoutes";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);

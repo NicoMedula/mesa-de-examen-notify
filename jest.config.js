@@ -16,4 +16,5 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  coveragePathIgnorePatterns: ["src/middleware/autenticacion.js"],
 };

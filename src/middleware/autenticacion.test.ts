@@ -1,10 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+process.env.JWT_SECRET = "test_secret";
+const SECRET = process.env.JWT_SECRET;
 import request from "supertest";
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import autenticarJWT from "./autenticacion";
-
-// Clave secreta usada en el middleware
-const SECRET = "TU_SECRETO";
 
 // Crea una app de Express para pruebas
 const app = express();

@@ -26,4 +26,12 @@ describe("NotificacionStrategy", () => {
     expect(consoleSpy).toHaveBeenCalledWith("[CONFIRMACION] Test");
     consoleSpy.mockRestore();
   });
+
+  it("debería emitir notificación por WebSocket si Socket.IO está inicializado", async () => {
+    const wsStrategy = WebSocketNotificacionStrategy.getInstance();
+    const emitMock = jest.fn();
+    wsStrategy.setSocketIO({ emit: emitMock });
+    await wsStrategy.enviar(notificacion);
+    expect(emitMock).toHaveBeenCalledWith("notificacion", notificacion);
+  });
 });

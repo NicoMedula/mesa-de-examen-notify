@@ -24,11 +24,16 @@ function autenticarJWT(rolesPermitidos: RolPermitido[] = []) {
   return (req: Request, res: Response, next: NextFunction): void => {
     // El token debe enviarse en el header Authorization: Bearer <token>
     const authHeader = req.headers.authorization;
-
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error(
+        "JWT_SECRET no está definido en las variables de entorno"
+      );
+    }
     if (authHeader) {
       const token = authHeader.split(" ")[1];
       // Verifica el token usando la clave secreta
-      jwt.verify(token, "TU_SECRETO", (err, usuario: unknown) => {
+      jwt.verify(token, secret, (err, usuario: unknown) => {
         if (err) {
           // Token inválido o expirado
           return res.status(403).json({ mensaje: "Token inválido o expirado" });
