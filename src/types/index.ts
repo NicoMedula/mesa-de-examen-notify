@@ -1,4 +1,6 @@
+import { Request } from "express";
 export type EstadoConfirmacion = "aceptado" | "rechazado" | "pendiente";
+export type RolUsuario = "docente" | "departamento";
 
 export interface Docente {
   id: string;
@@ -16,4 +18,14 @@ export interface Mesa {
 
 export interface MesasData {
   mesas: Mesa[];
+}
+
+export interface UsuarioAutenticado {
+  id: string;
+  rol: RolUsuario;
+  nombre?: string;
+}
+
+export interface RequestConUsuario extends Request {
+  user?: UsuarioAutenticado;
 }
