@@ -23,6 +23,7 @@ export class MesaController {
       const mesas = await this.mesaService.getMesasByDocenteId(id);
       res.json(mesas);
     } catch (error) {
+      console.error("Error en getMesasByDocenteId:", error);
       res.status(500).json({ error: "Error al obtener las mesas del docente" });
     }
   }
@@ -44,6 +45,7 @@ export class MesaController {
       );
       res.json(mesa);
     } catch (error) {
+      console.error("Error en confirmarMesa:", error);
       res.status(500).json({ error: "Error al confirmar la mesa" });
     }
   }
@@ -54,6 +56,7 @@ export class MesaController {
       await this.mesaService.enviarRecordatorio(mesaId);
       res.json({ message: "Recordatorio enviado correctamente" });
     } catch (error) {
+      console.error("Error en enviarRecordatorio:", error);
       res.status(500).json({ error: "Error al enviar el recordatorio" });
     }
   }

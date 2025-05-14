@@ -40,7 +40,6 @@ export class WebSocketNotificacionStrategy implements NotificacionStrategy {
 
 export class ConsoleNotificacionStrategy implements NotificacionStrategy {
   public async enviar(notificacion: Notificacion): Promise<void> {
-    // eslint-disable-next-line no-console
     console.log(`[${notificacion.tipo.toUpperCase()}] ${notificacion.mensaje}`);
   }
 }

@@ -1,8 +1,10 @@
 import {
   WebSocketNotificacionStrategy,
   ConsoleNotificacionStrategy,
+  
 } from "../NotificacionStrategy";
 import { Notificacion } from "../../factories/NotificacionFactory";
+import { MesaService } from "../../services/MesaService";
 
 describe("NotificacionStrategy", () => {
   const notificacion: Notificacion = {
@@ -33,5 +35,24 @@ describe("NotificacionStrategy", () => {
     wsStrategy.setSocketIO({ emit: emitMock });
     await wsStrategy.enviar(notificacion);
     expect(emitMock).toHaveBeenCalledWith("notificacion", notificacion);
+  });
+
+  
+    it("debería cambiar de estrategia en tiempo de ejecución", async () => {
+    // Ejemplo de uso en tiempo de ejecución
+    const mesaService = MesaService.getInstance();
+
+    // 1. Usando WebSocket (por defecto)
+    await mesaService.confirmarMesa("M1", "123", "aceptado"); // Envía por WebSocket
+
+    // 2. Cambiando a Console en tiempo de ejecución
+    const consoleStrategy = new ConsoleNotificacionStrategy();
+    mesaService.setNotificacionStrategy(consoleStrategy);
+    await mesaService.confirmarMesa("M1", "123", "aceptado"); // Ahora envía por consola
+
+    // 3. Volviendo a WebSocket
+    const wsStrategy = WebSocketNotificacionStrategy.getInstance();
+    mesaService.setNotificacionStrategy(wsStrategy);
+    await mesaService.confirmarMesa("M1", "123", "aceptado"); // Vuelve a enviar por WebSocket
   });
 });
