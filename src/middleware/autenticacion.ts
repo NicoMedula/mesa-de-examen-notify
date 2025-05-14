@@ -31,7 +31,12 @@ function autenticarJWT(rolesPermitidos: RolPermitido[] = []) {
       );
     }
     if (authHeader) {
-      const token = authHeader.split(" ")[1];
+      const partes = authHeader.split(" ");
+      if (partes.length !== 2 || partes[0] !== "Bearer" || !partes[1]) {
+        res.status(403).json({ mensaje: "Token inválido o expirado" });
+        return;
+      }
+      const token = partes[1];
       // Verifica el token usando la clave secreta
       jwt.verify(token, secret, (err, usuario: unknown) => {
         if (err) {

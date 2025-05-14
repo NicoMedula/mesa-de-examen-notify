@@ -59,4 +59,65 @@ describe("Middleware autenticarJWT", () => {
     expect(res.status).toBe(401);
     expect(res.body.mensaje).toBe("No se proporcionó token de autenticación");
   });
+
+  it("lanza error si JWT_SECRET no está definida", async () => {
+    const originalSecret = process.env.JWT_SECRET;
+    delete process.env.JWT_SECRET;
+    // Se debe crear una app nueva para evitar interferencias
+    const appSinSecret = express();
+    appSinSecret.get(
+      "/protegida",
+      (req, res, next) => {
+        try {
+          autenticarJWT(["docente"])(req, res, next);
+        } catch (e) {
+          res.status(500).json({ mensaje: (e as Error).message });
+        }
+      }
+    );
+    const res = await request(appSinSecret).get("/protegida");
+    expect(res.status).toBe(500);
+    expect(res.body.mensaje).toMatch(/JWT_SECRET no está definido/);
+    process.env.JWT_SECRET = originalSecret;
+  });
+
+  it("deniega acceso si el header Authorization es 'Bearer' sin token", async () => {
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", "Bearer");
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso si el header Authorization es 'Bearer ' (con espacio pero sin token)", async () => {
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", "Bearer ");
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso si el header Authorization es 'Bearer token extra' (más de dos partes)", async () => {
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", "Bearer token extra");
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso si el header Authorization no empieza con 'Bearer'", async () => {
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", "Token abcdef");
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso si el header Authorization no tiene formato Bearer <token>", async () => {
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", "TokenSinBearer");
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
 });
