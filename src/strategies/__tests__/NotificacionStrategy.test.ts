@@ -1,7 +1,6 @@
 import {
   WebSocketNotificacionStrategy,
   ConsoleNotificacionStrategy,
-  
 } from "../NotificacionStrategy";
 import { Notificacion } from "../../factories/NotificacionFactory";
 import { MesaService } from "../../services/MesaService";
@@ -37,8 +36,7 @@ describe("NotificacionStrategy", () => {
     expect(emitMock).toHaveBeenCalledWith("notificacion", notificacion);
   });
 
-  
-    it("debería cambiar de estrategia en tiempo de ejecución", async () => {
+  it("debería cambiar de estrategia en tiempo de ejecución", async () => {
     // Ejemplo de uso en tiempo de ejecución
     const mesaService = MesaService.getInstance();
 

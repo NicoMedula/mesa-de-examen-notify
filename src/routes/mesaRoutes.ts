@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { MesaController } from "../controllers/MesaController";
-import autenticarJWT from "../middleware/autenticacion";
 
 const router = Router();
 const mesaController = MesaController.getInstance();
