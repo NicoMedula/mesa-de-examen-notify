@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-process.env.JWT_SECRET = "test_secret";
-const SECRET = process.env.JWT_SECRET;
+const SECRET = process.env.JWT_SECRET || "test_secret";
+process.env.JWT_SECRET = SECRET;
 import request from "supertest";
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
