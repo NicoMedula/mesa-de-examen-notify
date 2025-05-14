@@ -65,16 +65,13 @@ describe("Middleware autenticarJWT", () => {
     delete process.env.JWT_SECRET;
     // Se debe crear una app nueva para evitar interferencias
     const appSinSecret = express();
-    appSinSecret.get(
-      "/protegida",
-      (req, res, next) => {
-        try {
-          autenticarJWT(["docente"])(req, res, next);
-        } catch (e) {
-          res.status(500).json({ mensaje: (e as Error).message });
-        }
+    appSinSecret.get("/protegida", (req, res, next) => {
+      try {
+        autenticarJWT(["docente"])(req, res, next);
+      } catch (e) {
+        res.status(500).json({ mensaje: (e as Error).message });
       }
-    );
+    });
     const res = await request(appSinSecret).get("/protegida");
     expect(res.status).toBe(500);
     expect(res.body.mensaje).toMatch(/JWT_SECRET no está definido/);
