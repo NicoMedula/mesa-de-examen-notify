@@ -29,7 +29,7 @@ export class MesaService {
     }
     return MesaService.instance;
   }
-  
+
   // metodo que permite inyectar una estrategia externa en tiempo de ejecucion.
   // se aplica explicitamente la inyeccion de dependencias
   public setNotificacionStrategy(strategy: NotificacionStrategy): void {
