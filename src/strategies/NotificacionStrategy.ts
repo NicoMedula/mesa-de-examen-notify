@@ -25,7 +25,7 @@ export class WebSocketNotificacionStrategy implements NotificacionStrategy {
     }
     return WebSocketNotificacionStrategy.instance;
   }
-
+//Permite inyectar la instancia real de Socket.IO desde afuera
   public setSocketIO(io: SocketIO | undefined): void {
     this.io = io;
   }

@@ -8,7 +8,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc && cp -r src/data dist/data",
     "test": "jest",
-    "test:watch": "jest --watch",
+    "test:watch": "jest --watchAll=false",
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
