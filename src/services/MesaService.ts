@@ -1,6 +1,7 @@
 import { Mesa } from "../types";
 import { MesaRepository } from "../repositories/MesaRepository";
 import { NotificacionFactory } from "../factories/NotificacionFactory";
+// Se importa la interfaz que define el contrato para cualquier estrategia de notificación
 import {
   NotificacionStrategy,
   WebSocketNotificacionStrategy,
@@ -12,10 +13,13 @@ import {
 export class MesaService {
   private static instance: MesaService;
   private mesaRepository: MesaRepository;
+  // La estrategia se declara con el tipo de la interfaz, no una clase concreta
+  // Esto permite inyectar diferentes implementaciones
   private notificacionStrategy: NotificacionStrategy;
 
   private constructor() {
     this.mesaRepository = MesaRepository.getInstance();
+    // Inicialmente se asigna una estrategia por defecto, pero esto puede cambiarse más adelante
     this.notificacionStrategy = WebSocketNotificacionStrategy.getInstance();
   }
 
@@ -25,7 +29,9 @@ export class MesaService {
     }
     return MesaService.instance;
   }
-
+  
+  // metodo que permite inyectar una estrategia externa en tiempo de ejecucion.
+  // se aplica explicitamente la inyeccion de dependencias
   public setNotificacionStrategy(strategy: NotificacionStrategy): void {
     this.notificacionStrategy = strategy;
   }
