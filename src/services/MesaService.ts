@@ -43,7 +43,7 @@ export class MesaService {
   public async confirmarMesa(
     mesaId: string,
     docenteId: string,
-    confirmacion: "aceptado" | "rechazado"
+    confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
     const mesa = await this.mesaRepository.updateConfirmacion(
       mesaId,

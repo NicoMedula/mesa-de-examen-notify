@@ -1,40 +1,147 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserRole } from "../types/user";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { useNavigate } from "react-router-dom";
+
+const FIXED_PASSWORD = "12345"; // Contraseña preestablecida
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("docente");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // No necesitamos cargar la lista de docentes por adelantado
+  // La autenticación se hará al momento de enviar el formulario
+
+  // Función para verificar credenciales y login con docente
+  const handleDocenteLogin = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      
+      // Verificar que la contraseña sea correcta (es fija para todos)
+      if (password !== FIXED_PASSWORD) {
+        setError("Contraseña incorrecta");
+        setLoading(false);
+        return;
+      }
+      
+      // Buscar docente por email en la API
+      const response = await fetch(`http://localhost:3001/api/docentes`);
+      if (!response.ok) {
+        throw new Error('Error al verificar credenciales');
+      }
+      
+      const docentes = await response.json();
+      console.log("Docentes obtenidos:", docentes);
+      
+      // Comprobación exacta del email
+      const docente = docentes.find((d: any) => d.email.toLowerCase().trim() === email.toLowerCase().trim());
+      
+      // Log detallado para debugging
+      console.log("Email buscado:", email);
+      console.log("Docente encontrado:", docente);
+      console.log("ID del docente en la base de datos:", docente?.id);
+      
+      if (!docente) {
+        setError("No se encontró un docente con ese correo electrónico");
+        setLoading(false);
+        return;
+      }
+      
+      // Limpiar datos anteriores
+      sessionStorage.clear();
+      localStorage.removeItem("departamentoId");
+      
+      // Establecer datos de sesión para este docente
+      const sessionId = `${docente.nombre.toLowerCase().replace(/ /g, '_')}_${Date.now()}`;
+      sessionStorage.setItem("sessionId", sessionId);
+      sessionStorage.setItem("currentUser", docente.nombre);
+      sessionStorage.setItem("userRole", "docente");
+      sessionStorage.setItem("docenteId", docente.id);
+      
+      // También almacenar en localStorage para compatibilidad
+      localStorage.setItem("docenteId", docente.id);
+      localStorage.setItem("userName", docente.nombre);
+      
+      console.log(`Iniciando sesión como ${docente.nombre} con ID ${docente.id}`);
+      setLoading(false);
+      navigate("/docente");
+    } catch (error: any) {
+      console.error('Error en la autenticación:', error);
+      setError(error?.message || "Error al iniciar sesión");
+      setLoading(false);
+    }
+  };
+
+  const handleDepartamentoLogin = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      
+      // Validar contraseña para el departamento
+      if (password !== FIXED_PASSWORD) {
+        setError("Contraseña incorrecta");
+        setLoading(false);
+        return;
+      }
+      
+      // Verificar que el correo sea el correcto para el departamento
+      if (email !== "departamento@ejemplo.com") {
+        setError("Correo electrónico de departamento incorrecto");
+        setLoading(false);
+        return;
+      }
+      
+      // Limpiar datos anteriores
+      sessionStorage.clear();
+      localStorage.removeItem("docenteId");
+      localStorage.removeItem("userName");
+      
+      // Establecer datos de sesión únicos para el departamento
+      const sessionId = `depto_${Date.now()}`;
+      sessionStorage.setItem("sessionId", sessionId);
+      sessionStorage.setItem("currentUser", "Departamento");
+      sessionStorage.setItem("userRole", "departamento");
+      sessionStorage.setItem("departamentoId", "2c5ea4c0-4067-11ed-b878-0242ac120002");
+      
+      // También almacenar en localStorage para compatibilidad
+      localStorage.setItem("departamentoId", "2c5ea4c0-4067-11ed-b878-0242ac120002");
+      
+      setLoading(false);
+      navigate("/departamento");
+    } catch (error: any) {
+      console.error('Error en la autenticación del departamento:', error);
+      setError(error?.message || "Error al iniciar sesión");
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3001/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || "Error desconocido");
+      // Validar campos comunes a ambos roles
+      if (!email.trim()) {
+        setError("Por favor, ingrese su correo electrónico");
         return;
       }
-
-      // Guardar el id del docente en localStorage si el rol es docente
-      if (role === "docente") {
-        localStorage.setItem("docenteId", result.user.id);
+      
+      if (!password.trim()) {
+        setError("Por favor, ingrese su contraseña");
+        return;
       }
-
-      // Redirección basada en el rol
-      window.location.href = role === "docente" ? "/docente" : "/departamento";
+      
+      // Dependiendo del rol, usar la función de autenticación correspondiente
+      if (role === "docente" as UserRole) {
+        await handleDocenteLogin(email, password);
+      } else if (role === "departamento" as UserRole) {
+        await handleDepartamentoLogin(email, password);
+      }
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Error al iniciar sesión");
     }
   };
 
@@ -88,6 +195,27 @@ const Login: React.FC = () => {
                     <option value="departamento">Departamento</option>
                   </select>
                 </div>
+                
+                {/* Campo de ayuda para indicar el correo dependiendo del rol */}
+                <div className="mb-3">
+                  <div className="form-text text-info">
+                    {role === "docente" as UserRole ? (
+                      <>Docentes disponibles: <strong>docente1@ejemplo.com</strong> (Juan) o <strong>docente2@ejemplo.com</strong> (Nico)</>
+                    ) : (
+                      <>Para departamento, use: <strong>departamento@ejemplo.com</strong></>
+                    )}
+                  </div>
+                </div>
+
+                {loading && (
+                  <div className="d-flex justify-content-center mb-3">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Cargando...</span>
+                    </div>
+                    <span className="ms-2">Verificando credenciales...</span>
+                  </div>
+                )}
+                
                 <button type="submit" className="btn btn-primary w-100">
                   Ingresar
                 </button>

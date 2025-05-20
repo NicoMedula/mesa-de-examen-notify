@@ -8,12 +8,15 @@ export interface Docente {
   confirmacion: EstadoConfirmacion;
 }
 
+export type EstadoMesa = "pendiente" | "confirmada" | "cancelada";
+
 export interface Mesa {
   id: string;
   materia: string;
   fecha: string;
   hora: string;
   aula: string;
+  estado?: EstadoMesa; // Campo opcional ya que no existe en la tabla de la BD
   docentes: Docente[];
 }
 

@@ -14,28 +14,78 @@ interface Mesa {
   hora: string;
   aula: string;
   ubicacion: string;
+  estado: string;
   docentes: { id: string; nombre: string; confirmacion: string }[];
 }
 
+// Usar sessionStorage con el contexto de ruta para evitar conflictos entre pestan00f1as
+const getDepartamentoPath = () => {
+  // Verificar si estamos en el contexto de departamento
+  const path = sessionStorage.getItem('currentPath');
+  if (path !== 'departamento') {
+    console.warn('No estamos en el contexto del departamento:', path);
+  }
+  return path === 'departamento';
+};
+
 const DepartamentoDashboard: React.FC = () => {
   const [mesas, setMesas] = useState<Mesa[]>([]);
+  const [mesasConfirmadas, setMesasConfirmadas] = useState<Mesa[]>([]);
   const [docentes, setDocentes] = useState<Docente[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('pendientes');
 
   // Cargar mesas y docentes
   useEffect(() => {
-    fetch("http://192.168.0.6:3001/api/mesas")
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchMesas = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/mesas");
+        if (!res.ok) {
+          console.error("Error fetching mesas:", res.status);
+          return;
+        }
+        const data = await res.json();
         console.log("MESAS DESDE BACKEND", data);
-        setMesas(data);
-      });
-    fetch("http://192.168.0.6:3001/api/docentes")
-      .then((res) => res.json())
-      .then(setDocentes);
+        
+        // Verificar que data sea un array antes de procesarlo
+        if (Array.isArray(data)) {
+          // Separar mesas confirmadas y pendientes
+          const confirmadas = data.filter((m: Mesa) => m?.estado === "confirmada");
+          const pendientes = data.filter((m: Mesa) => m?.estado !== "confirmada");
+          setMesasConfirmadas(confirmadas || []);
+          setMesas(pendientes || []);
+        } else {
+          console.error("Data is not an array:", data);
+          setMesasConfirmadas([]);
+          setMesas([]);
+        }
+      } catch (error) {
+        console.error("Error fetching mesas:", error);
+        setMesasConfirmadas([]);
+        setMesas([]);
+      }
+    };
+
+    const fetchDocentes = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/docentes");
+        if (!res.ok) {
+          console.error("Error fetching docentes:", res.status);
+          return;
+        }
+        const data = await res.json();
+        setDocentes(data || []);
+      } catch (error) {
+        console.error("Error fetching docentes:", error);
+        setDocentes([]);
+      }
+    };
+
+    fetchMesas();
+    fetchDocentes();
   }, []);
 
   const handleInput = (
@@ -44,8 +94,10 @@ const DepartamentoDashboard: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const generateId = () =>
-    Date.now().toString() + Math.random().toString(36).substring(2);
+  const generateId = () => {
+    // Generate a clean ID without special characters that might cause API issues
+    return `mesa_${Date.now().toString()}_${Math.floor(Math.random() * 10000)}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,35 +129,70 @@ const DepartamentoDashboard: React.FC = () => {
             ?.confirmacion || "pendiente",
       },
     ];
+    
+    // Crear un ID limpio para evitar problemas con la API
+    const newId = editMesa ? editMesa.id : generateId();
+    console.log("ID generado para la mesa:", newId);
+    
     const mesaData = {
       materia: form.materia,
       fecha: form.fecha,
       hora: form.hora,
       aula: form.aula,
+      estado: "pendiente",
       docentes: docentesArr,
       docente_titular: form.docente_titular,
       docente_vocal: form.docente_vocal,
-      id: editMesa ? editMesa.id : generateId(),
+      id: newId,
     };
-    const url = editMesa
-      ? `http://192.168.0.6:3001/api/mesas/${editMesa.id}`
-      : "http://192.168.0.6:3001/api/mesas";
-    const method = editMesa ? "PUT" : "POST";
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(mesaData),
-    });
-    if (!res.ok) {
-      setError("Error al guardar la mesa");
-      return;
+    
+    try {
+      const url = editMesa
+        ? `http://localhost:3001/api/mesas/${editMesa.id}`
+        : "http://localhost:3001/api/mesas";
+      const method = editMesa ? "PUT" : "POST";
+      
+      console.log(`${method} request to ${url} with data:`, mesaData);
+      
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mesaData),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Error ${res.status} al guardar la mesa:`, errorText);
+        setError(`Error al guardar la mesa: ${res.status} ${errorText}`);
+        return;
+      }
+      
+      setShowForm(false);
+      setEditMesa(null);
+      setForm({});
+      
+      // Refrescar la lista de mesas con manejo de errores
+      try {
+        const mesasRes = await fetch("http://localhost:3001/api/mesas");
+        if (!mesasRes.ok) {
+          console.error("Error al refrescar las mesas:", mesasRes.status);
+          return;
+        }
+        const mesasData = await mesasRes.json();
+        
+        if (Array.isArray(mesasData)) {
+          const confirmadas = mesasData.filter((m) => m?.estado === "confirmada");
+          const pendientes = mesasData.filter((m) => m?.estado !== "confirmada");
+          setMesasConfirmadas(confirmadas);
+          setMesas(pendientes);
+        }
+      } catch (error) {
+        console.error("Error al refrescar las mesas:", error);
+      }
+    } catch (error: any) {
+      console.error("Error al guardar la mesa:", error);
+      setError(`Error al guardar la mesa: ${error?.message || String(error)}`);
     }
-    setShowForm(false);
-    setEditMesa(null);
-    setForm({});
-    fetch("http://192.168.0.6:3001/api/mesas")
-      .then((res) => res.json())
-      .then(setMesas);
   };
 
   const handleEdit = (mesa: Mesa) => {
@@ -125,17 +212,121 @@ const DepartamentoDashboard: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Eliminar esta mesa?")) return;
-    await fetch(`http://192.168.0.6:3001/api/mesas/${id}`, {
+    await fetch(`http://localhost:3001/api/mesas/${id}`, {
       method: "DELETE",
     });
     setMesas(mesas.filter((m) => m.id !== id));
+  };
+
+  // Función para refrescar las listas de mesas
+  const refreshMesas = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/mesas");
+      if (!res.ok) {
+        console.error("Error al refrescar las mesas:", res.status);
+        return;
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const confirmadas = data.filter((m) => m?.estado === "confirmada");
+        const pendientes = data.filter((m) => m?.estado !== "confirmada");
+        setMesasConfirmadas(confirmadas);
+        setMesas(pendientes);
+      }
+    } catch (error) {
+      console.error("Error al refrescar las mesas:", error);
+    }
+  };
+
+  const handleConfirmMesa = async (mesaId: string) => {
+    try {
+      console.log("Confirming mesa with ID:", mesaId);
+      
+      const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "confirmada" }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Error ${res.status} al confirmar la mesa:`, errorText);
+        setError(`Error al confirmar la mesa: ${res.status} ${errorText}`);
+        return;
+      }
+      
+      // Actualizar las listas después de confirmar
+      const mesaConfirmada = mesas.find(m => m.id === mesaId);
+      if (mesaConfirmada) {
+        const updatedMesa = {...mesaConfirmada, estado: "confirmada"};
+        setMesasConfirmadas([...mesasConfirmadas, updatedMesa]);
+        setMesas(mesas.filter(m => m.id !== mesaId));
+      } else {
+        console.warn("Mesa not found in pending list:", mesaId);
+        // Refrescar las listas completas para asegurar datos actualizados
+        await refreshMesas();
+      }
+    } catch (error: any) {
+      console.error("Error al confirmar mesa:", error);
+      setError(`Error al confirmar la mesa: ${error?.message || String(error)}`);
+    }
+  };
+
+  const handleCancelMesa = async (mesaId: string) => {
+    try {
+      console.log("Canceling mesa with ID:", mesaId);
+      
+      // Primero obtenemos la mesa para resets los estados de confirmación de los docentes a pendiente
+      const mesaCancelada = mesasConfirmadas.find(m => m.id === mesaId);
+      
+      if (!mesaCancelada) {
+        console.warn("Mesa no encontrada en la lista de mesas confirmadas:", mesaId);
+        setError(`Error al cancelar: Mesa no encontrada`);
+        return;
+      }
+      
+      // Reiniciamos el estado de confirmación de cada docente a pendiente
+      const docentesReiniciados = mesaCancelada.docentes.map(docente => ({
+        ...docente,
+        confirmacion: "pendiente"  // Resetear a pendiente para que el docente pueda confirmar nuevamente
+      }));
+      
+      // Enviamos la actualización con el cambio de estado y los docentes reiniciados
+      const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          estado: "pendiente",
+          docentes: docentesReiniciados
+        }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Error ${res.status} al cancelar la mesa:`, errorText);
+        setError(`Error al cancelar la mesa: ${res.status} ${errorText}`);
+        return;
+      }
+      
+      // Actualizar las listas después de cancelar
+      const updatedMesa = {...mesaCancelada, estado: "pendiente", docentes: docentesReiniciados};
+      setMesas([...mesas, updatedMesa]);
+      setMesasConfirmadas(mesasConfirmadas.filter(m => m.id !== mesaId));
+      
+      // Mostrar mensaje de éxito
+      setError("La mesa ha sido cancelada. Los docentes podrán modificar su confirmación nuevamente.");
+      setTimeout(() => setError(null), 5000); // Limpiar el mensaje después de 5 segundos
+    } catch (error: any) {
+      console.error("Error al cancelar mesa:", error);
+      setError(`Error al cancelar la mesa: ${error?.message || String(error)}`);
+    }
   };
 
   return (
     <div className="container mt-4">
       <h2>Gestión de Mesas de Examen</h2>
       <button
-        className="btn btn-success mb-3"
+        className="btn btn-success mb-3 me-2"
         onClick={() => {
           setShowForm(true);
           setEditMesa(null);
@@ -144,48 +335,159 @@ const DepartamentoDashboard: React.FC = () => {
       >
         Nueva Mesa
       </button>
-      <table className="table table-bordered">
-        <thead>
-          <tr>
-            <th>Materia</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Aula</th>
-            <th>Docente Titular</th>
-            <th>Docente Vocal</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mesas.map((mesa) => {
-            console.log("RENDER MESA", mesa);
-            return (
+      
+      {/* Tabs de navegación */}
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button 
+            className={`nav-link ${activeTab === 'pendientes' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('pendientes')}
+          >
+            Mesas Pendientes
+          </button>
+        </li>
+        <li className="nav-item">
+          <button 
+            className={`nav-link ${activeTab === 'confirmadas' ? 'active' : ''}`} 
+            onClick={() => setActiveTab('confirmadas')}
+          >
+            Mesas Confirmadas
+          </button>
+        </li>
+      </ul>
+      
+      {/* Tab de mesas pendientes */}
+      {activeTab === 'pendientes' && (
+        <>
+          {error && <div className="alert alert-danger">{error}</div>}
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Aula</th>
+                <th>Docente Titular</th>
+                <th>Docente Vocal</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mesas.map((mesa) => {
+                console.log("RENDER MESA", mesa);
+                // Verificar si ambos docentes han aceptado
+                const bothAccepted = 
+                  mesa.docentes?.[0]?.confirmacion === "aceptado" && 
+                  mesa.docentes?.[1]?.confirmacion === "aceptado";
+                  
+                return (
+                  <tr key={mesa.id}>
+                    <td>{mesa.materia || "-"}</td>
+                    <td>{mesa.fecha}</td>
+                    <td>{mesa.hora}</td>
+                    <td>{mesa.aula || "-"}</td>
+                    <td>
+                      {mesa.docentes?.[0]?.nombre || "-"}
+                      {mesa.docentes?.[0]?.confirmacion && (
+                        <span className={`ms-2 badge ${
+                          mesa.docentes[0].confirmacion === "aceptado" ? "bg-success" : 
+                          mesa.docentes[0].confirmacion === "rechazado" ? "bg-danger" : "bg-warning"
+                        }`}>
+                          {mesa.docentes[0].confirmacion}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {mesa.docentes?.[1]?.nombre || "-"}
+                      {mesa.docentes?.[1]?.confirmacion && (
+                        <span className={`ms-2 badge ${
+                          mesa.docentes[1].confirmacion === "aceptado" ? "bg-success" : 
+                          mesa.docentes[1].confirmacion === "rechazado" ? "bg-danger" : "bg-warning"
+                        }`}>
+                          {mesa.docentes[1].confirmacion}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm me-2"
+                        onClick={() => handleEdit(mesa)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm me-2"
+                        onClick={() => handleDelete(mesa.id)}
+                      >
+                        Eliminar
+                      </button>
+                      {bothAccepted && (
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => handleConfirmMesa(mesa.id)}
+                        >
+                          Confirmar Mesa
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+      
+      {/* Tab de mesas confirmadas */}
+      {activeTab === 'confirmadas' && (
+        <table className="table table-bordered">
+          <thead>
+            <tr>
+              <th>Materia</th>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Aula</th>
+              <th>Docente Titular</th>
+              <th>Docente Vocal</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mesasConfirmadas.map((mesa) => (
               <tr key={mesa.id}>
                 <td>{mesa.materia || "-"}</td>
                 <td>{mesa.fecha}</td>
                 <td>{mesa.hora}</td>
                 <td>{mesa.aula || "-"}</td>
-                <td>{mesa.docentes?.[0]?.nombre || "-"}</td>
-                <td>{mesa.docentes?.[1]?.nombre || "-"}</td>
+                <td>
+                  {mesa.docentes?.[0]?.nombre || "-"}
+                  {mesa.docentes?.[0]?.confirmacion && (
+                    <span className="ms-2 badge bg-success">
+                      {mesa.docentes[0].confirmacion}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {mesa.docentes?.[1]?.nombre || "-"}
+                  {mesa.docentes?.[1]?.confirmacion && (
+                    <span className="ms-2 badge bg-success">
+                      {mesa.docentes[1].confirmacion}
+                    </span>
+                  )}
+                </td>
                 <td>
                   <button
-                    className="btn btn-primary btn-sm me-2"
-                    onClick={() => handleEdit(mesa)}
+                    className="btn btn-warning btn-sm"
+                    onClick={() => handleCancelMesa(mesa.id)}
                   >
-                    Editar
-                  </button>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDelete(mesa.id)}
-                  >
-                    Eliminar
+                    Cancelar Mesa
                   </button>
                 </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      )}
       {showForm && (
         <div className="card mt-4">
           <div className="card-body">

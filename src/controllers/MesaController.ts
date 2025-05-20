@@ -34,20 +34,53 @@ export class MesaController {
       const { mesaId, docenteId } = req.params;
       const { confirmacion } = req.body;
 
-      if (!["aceptado", "rechazado"].includes(confirmacion)) {
+      console.log(`Recibida solicitud de confirmación: Mesa ${mesaId}, Docente ${docenteId}, Estado: ${confirmacion}`);
+
+      if (!["aceptado", "rechazado", "pendiente"].includes(confirmacion)) {
+        console.error(`Confirmación inválida: ${confirmacion}`);
         res.status(400).json({ error: "Confirmación inválida" });
         return;
       }
 
-      const mesa = await this.mesaService.confirmarMesa(
-        mesaId,
-        docenteId,
-        confirmacion
-      );
-      res.json(mesa);
-    } catch (error) {
-      console.error("Error en confirmarMesa:", error);
-      res.status(500).json({ error: "Error al confirmar la mesa" });
+      try {
+        const mesa = await this.mesaService.confirmarMesa(
+          mesaId,
+          docenteId,
+          confirmacion as import("../types").EstadoConfirmacion
+        );
+        
+        console.log(`Confirmación exitosa para mesa ${mesaId}`);
+        res.json(mesa);
+      } catch (serviceError: any) {
+        // Capturar errores específicos del servicio y enviar una respuesta adecuada
+        console.error(`Error del servicio al confirmar mesa ${mesaId}:`, serviceError);
+        
+        // Determinar el código de error apropiado basado en el mensaje
+        const errorMessage = serviceError.message || "Error desconocido";
+        
+        if (errorMessage.includes("no encontrada")) {
+          res.status(404).json({ 
+            error: errorMessage,
+            detalle: "La mesa solicitada no existe en la base de datos"
+          });
+        } else if (errorMessage.includes("no asignado")) {
+          res.status(403).json({ 
+            error: errorMessage,
+            detalle: "El docente no está asignado a esta mesa"
+          });
+        } else {
+          res.status(500).json({ 
+            error: "Error al confirmar la mesa",
+            detalle: errorMessage
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Error general en confirmarMesa:", error);
+      res.status(500).json({ 
+        error: "Error al procesar la solicitud", 
+        detalle: error.message || "Error desconocido"
+      });
     }
   }
 
@@ -64,35 +97,82 @@ export class MesaController {
 
   public async createMesa(req: Request, res: Response): Promise<void> {
     try {
-      const { materia, fecha, hora, aula, docente_titular, docente_vocal } =
-        req.body;
-      // Crear array de docentes con confirmación pendiente
-      const docentes = [
-        {
-          id: docente_titular,
-          nombre: await this.getNombreDocente(docente_titular),
-          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
-        },
-        {
-          id: docente_vocal,
-          nombre: await this.getNombreDocente(docente_vocal),
-          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
-        },
-      ];
-      const mesaObj = {
-        id: uuidv4(),
-        materia,
-        fecha,
-        hora,
-        aula,
-        docentes,
-      };
-      console.log("Intentando crear mesa en Supabase:", mesaObj);
-      const nuevaMesa = await this.mesaService.createMesa(mesaObj);
-      res.status(201).json(nuevaMesa);
-    } catch (error) {
-      console.error("Error en createMesa:", error);
-      res.status(500).json({ error: "Error al crear la mesa" });
+      console.log("Recibida solicitud para crear mesa:", req.body);
+
+      // Validar que los campos obligatorios estén presentes
+      const { materia, fecha, hora, aula, docente_titular, docente_vocal } = req.body;
+      
+      if (!materia) {
+        console.error("Falta campo obligatorio: materia");
+        res.status(400).json({ error: "La materia es un campo obligatorio" });
+        return;
+      }
+      
+      if (!fecha) {
+        console.error("Falta campo obligatorio: fecha");
+        res.status(400).json({ error: "La fecha es un campo obligatorio" });
+        return;
+      }
+      
+      if (!docente_titular) {
+        console.error("Falta campo obligatorio: docente_titular");
+        res.status(400).json({ error: "El docente titular es un campo obligatorio" });
+        return;
+      }
+      
+      if (!docente_vocal) {
+        console.error("Falta campo obligatorio: docente_vocal");
+        res.status(400).json({ error: "El docente vocal es un campo obligatorio" });
+        return;
+      }
+      
+      // Generar un ID único para la mesa
+      const mesaId = uuidv4();
+      console.log("ID generado para la nueva mesa:", mesaId);
+      
+      try {
+        // Crear array de docentes con confirmación pendiente
+        const docentes = [
+          {
+            id: docente_titular,
+            nombre: await this.getNombreDocente(docente_titular),
+            confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+          },
+          {
+            id: docente_vocal,
+            nombre: await this.getNombreDocente(docente_vocal),
+            confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+          },
+        ];
+        
+        const mesaObj = {
+          id: mesaId,
+          materia,
+          fecha,
+          hora,
+          aula: aula || "", // Asegurar que aula no sea null
+          // Eliminado el campo 'estado' porque no existe en la tabla de la BD
+          docentes,
+        };
+        
+        console.log("Intentando crear mesa en Supabase:", JSON.stringify(mesaObj, null, 2));
+        const nuevaMesa = await this.mesaService.createMesa(mesaObj);
+        console.log("Mesa creada exitosamente:", nuevaMesa);
+        res.status(201).json(nuevaMesa);
+      } catch (serviceError: any) {
+        // Manejar errores específicos del servicio
+        console.error("Error del servicio al crear mesa:", serviceError);
+        res.status(500).json({ 
+          error: "Error al crear la mesa",
+          detalle: serviceError.message || "Error desconocido"
+        });
+      }
+    } catch (error: any) {
+      console.error("Error general en createMesa:", error);
+      res.status(500).json({ 
+        error: "Error al procesar la solicitud", 
+        detalle: error.message || "Error desconocido"
+      });
     }
   }
 
@@ -109,7 +189,7 @@ export class MesaController {
   public async updateMesa(req: Request, res: Response): Promise<void> {
     try {
       const { mesaId } = req.params;
-      const { fecha, hora, aula, docente_titular, docente_vocal } = req.body;
+      const { fecha, hora, aula, estado, docente_titular, docente_vocal } = req.body;
       // Obtener la mesa actual
       const mesaActual = await this.mesaService
         .getAllMesas()
@@ -142,6 +222,7 @@ export class MesaController {
         fecha,
         hora,
         aula,
+        estado,
         docentes: nuevosDocentes,
       });
       res.json(mesaActualizada);

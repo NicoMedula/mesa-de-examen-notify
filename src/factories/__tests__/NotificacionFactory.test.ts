@@ -8,6 +8,7 @@ describe("NotificacionFactory", () => {
     hora: "10:00",
     aula: "Aula 301",
     materia: "Matemáticas",
+    estado: "pendiente",
     docentes: [],
   };
   const docente: Docente = {
