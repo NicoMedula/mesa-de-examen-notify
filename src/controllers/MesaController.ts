@@ -60,4 +60,48 @@ export class MesaController {
       res.status(500).json({ error: "Error al enviar el recordatorio" });
     }
   }
+
+  public async createMesa(req: Request, res: Response): Promise<void> {
+    try {
+      const mesa = req.body;
+      const nuevaMesa = await this.mesaService.createMesa(mesa);
+      res.status(201).json(nuevaMesa);
+    } catch (error) {
+      console.error("Error en createMesa:", error);
+      res.status(500).json({ error: "Error al crear la mesa" });
+    }
+  }
+
+  public async updateMesa(req: Request, res: Response): Promise<void> {
+    try {
+      const { mesaId } = req.params;
+      const mesaActualizada = req.body;
+      const mesa = await this.mesaService.updateMesa(mesaId, mesaActualizada);
+      res.json(mesa);
+    } catch (error) {
+      console.error("Error en updateMesa:", error);
+      res.status(500).json({ error: "Error al actualizar la mesa" });
+    }
+  }
+
+  public async deleteMesa(req: Request, res: Response): Promise<void> {
+    try {
+      const { mesaId } = req.params;
+      await this.mesaService.deleteMesa(mesaId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error en deleteMesa:", error);
+      res.status(500).json({ error: "Error al eliminar la mesa" });
+    }
+  }
+
+  public async getAllMesas(req: Request, res: Response): Promise<void> {
+    try {
+      const mesas = await this.mesaService.getAllMesas();
+      res.json(mesas);
+    } catch (error) {
+      console.error("Error en getAllMesas:", error);
+      res.status(500).json({ error: "Error al obtener las mesas" });
+    }
+  }
 }

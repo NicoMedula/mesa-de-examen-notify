@@ -67,4 +67,32 @@ export class MesaRepository {
     this.writeData(data);
     return mesa;
   }
+
+  public createMesa(mesa: Mesa): Mesa {
+    const data = this.readData();
+    data.mesas.push(mesa);
+    this.writeData(data);
+    return mesa;
+  }
+
+  public updateMesa(mesaId: string, mesaActualizada: Partial<Mesa>): Mesa {
+    const data = this.readData();
+    const mesa = data.mesas.find((m) => m.id === mesaId);
+    if (!mesa) {
+      throw new Error("Mesa no encontrada");
+    }
+    Object.assign(mesa, mesaActualizada);
+    this.writeData(data);
+    return mesa;
+  }
+
+  public deleteMesa(mesaId: string): void {
+    const data = this.readData();
+    const index = data.mesas.findIndex((m) => m.id === mesaId);
+    if (index === -1) {
+      throw new Error("Mesa no encontrada");
+    }
+    data.mesas.splice(index, 1);
+    this.writeData(data);
+  }
 }

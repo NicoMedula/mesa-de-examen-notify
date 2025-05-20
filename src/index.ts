@@ -75,7 +75,7 @@ app.use(
   }
 );
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`Backend corriendo en http://localhost:${PORT}`);

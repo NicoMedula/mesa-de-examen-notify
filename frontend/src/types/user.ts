@@ -1,4 +1,4 @@
-export type UserRole = "docente" | "departamento";
+export type UserRole = "docente";
 
 export interface User {
   id: string;

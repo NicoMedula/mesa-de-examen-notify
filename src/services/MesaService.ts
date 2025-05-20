@@ -73,4 +73,25 @@ export class MesaService {
       await this.notificacionStrategy.enviar(notificacion);
     }
   }
+
+  public async createMesa(mesa: Mesa): Promise<Mesa> {
+    // Aquí podrías agregar lógica de notificación si es necesario
+    return this.mesaRepository.createMesa(mesa);
+  }
+
+  public async updateMesa(
+    mesaId: string,
+    mesaActualizada: Partial<Mesa>
+  ): Promise<Mesa> {
+    // Aquí podrías agregar lógica de notificación si es necesario
+    return this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+  }
+
+  public async deleteMesa(mesaId: string): Promise<void> {
+    return this.mesaRepository.deleteMesa(mesaId);
+  }
+
+  public async getAllMesas(): Promise<Mesa[]> {
+    return this.mesaRepository.getAllMesas();
+  }
 }
