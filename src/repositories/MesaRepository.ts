@@ -90,12 +90,16 @@ export class MesaRepository {
 
   // Adaptadores para convertir entre el modelo de la DB y el de la app
   private adaptMesaFromDB(dbMesa: any): Mesa {
+    // Log the raw database mesa object to debug
+    console.log("Raw DB Mesa:", dbMesa);
     return {
       id: dbMesa.id,
-      materia: dbMesa.materia,
+      // Check for materia in different possible forms
+      materia: dbMesa.materia || dbMesa.materia_name || "",
       fecha: dbMesa.fecha,
       hora: dbMesa.hora,
-      aula: dbMesa.aula,
+      // Check for aula in different possible forms
+      aula: dbMesa.aula || dbMesa.ubicacion || "",
       docentes: dbMesa.docentes || [],
     };
   }

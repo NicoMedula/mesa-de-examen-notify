@@ -16,8 +16,17 @@ const DocenteDashboard: React.FC = () => {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [docenteNombre, setDocenteNombre] = useState<string>("");
 
   useEffect(() => {
+    // Obtener nombre del docente
+    fetch(`http://192.168.0.6:3001/api/docentes`)
+      .then((res) => res.json())
+      .then((data) => {
+        const docente = data.find((d: any) => d.id === docenteId);
+        setDocenteNombre(docente?.nombre || "");
+      });
+    // Obtener mesas
     fetch(`http://192.168.0.6:3001/api/docente/${docenteId}/mesas`)
       .then((res) => res.json())
       .then((data) => {
@@ -51,6 +60,9 @@ const DocenteDashboard: React.FC = () => {
 
   return (
     <div className="container mt-4">
+      {docenteNombre && (
+        <h3 className="mb-3">Bienvenido/a, {docenteNombre}!</h3>
+      )}
       <h2>Mis Mesas Asignadas</h2>
       {error && <div className="alert alert-danger">{error}</div>}
       {loading ? (
@@ -80,7 +92,7 @@ const DocenteDashboard: React.FC = () => {
                     <td>{mesa.materia || "-"}</td>
                     <td>{mesa.fecha}</td>
                     <td>{mesa.hora}</td>
-                    <td>{mesa.aula}</td>
+                    <td>{mesa.aula || "-"}</td>
                     <td>{rol}</td>
                     <td>{docente.confirmacion}</td>
                     <td>

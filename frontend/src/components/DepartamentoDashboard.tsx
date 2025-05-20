@@ -13,9 +13,8 @@ interface Mesa {
   fecha: string;
   hora: string;
   aula: string;
-  docente_titular: string;
-  docente_vocal: string;
-  docentes?: { id: string; nombre: string; confirmacion: string }[];
+  ubicacion: string;
+  docentes: { id: string; nombre: string; confirmacion: string }[];
 }
 
 const DepartamentoDashboard: React.FC = () => {
@@ -30,7 +29,10 @@ const DepartamentoDashboard: React.FC = () => {
   useEffect(() => {
     fetch("http://192.168.0.6:3001/api/mesas")
       .then((res) => res.json())
-      .then(setMesas);
+      .then((data) => {
+        console.log("MESAS DESDE BACKEND", data);
+        setMesas(data);
+      });
     fetch("http://192.168.0.6:3001/api/docentes")
       .then((res) => res.json())
       .then(setDocentes);
@@ -48,34 +50,28 @@ const DepartamentoDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!form.docente_titular || !form.docente_vocal) {
-      setError("Debes seleccionar un docente titular y un docente vocal.");
+    if (!form.materia || !form.docente_titular || !form.docente_vocal) {
+      setError(
+        "Debes completar materia y seleccionar un docente titular y un docente vocal."
+      );
       return;
     }
     if (form.docente_titular === form.docente_vocal) {
       setError("El titular y el vocal deben ser diferentes");
       return;
     }
-    // Construir array de docentes solo si ambos están presentes
     const docentesArr = [
       {
         id: form.docente_titular,
         nombre:
-          form.docentes?.find((d: any) => d.id === form.docente_titular)
-            ?.nombre ||
-          docentes.find((d) => d.id === form.docente_titular)?.nombre ||
-          "",
+          docentes.find((d) => d.id === form.docente_titular)?.nombre || "",
         confirmacion:
           form.docentes?.find((d: any) => d.id === form.docente_titular)
             ?.confirmacion || "pendiente",
       },
       {
         id: form.docente_vocal,
-        nombre:
-          form.docentes?.find((d: any) => d.id === form.docente_vocal)
-            ?.nombre ||
-          docentes.find((d) => d.id === form.docente_vocal)?.nombre ||
-          "",
+        nombre: docentes.find((d) => d.id === form.docente_vocal)?.nombre || "",
         confirmacion:
           form.docentes?.find((d: any) => d.id === form.docente_vocal)
             ?.confirmacion || "pendiente",
@@ -107,13 +103,13 @@ const DepartamentoDashboard: React.FC = () => {
     setShowForm(false);
     setEditMesa(null);
     setForm({});
-    // Recargar mesas
     fetch("http://192.168.0.6:3001/api/mesas")
       .then((res) => res.json())
       .then(setMesas);
   };
 
   const handleEdit = (mesa: Mesa) => {
+    console.log("EDITAR MESA", mesa);
     setEditMesa(mesa);
     setForm({
       materia: mesa.materia,
@@ -161,36 +157,33 @@ const DepartamentoDashboard: React.FC = () => {
           </tr>
         </thead>
         <tbody>
-          {mesas.map((mesa) => (
-            <tr key={mesa.id}>
-              <td>{mesa.materia}</td>
-              <td>{mesa.fecha}</td>
-              <td>{mesa.hora}</td>
-              <td>{mesa.aula}</td>
-              <td>
-                {docentes.find((d) => d.id === mesa.docente_titular)?.nombre ||
-                  mesa.docente_titular}
-              </td>
-              <td>
-                {docentes.find((d) => d.id === mesa.docente_vocal)?.nombre ||
-                  mesa.docente_vocal}
-              </td>
-              <td>
-                <button
-                  className="btn btn-primary btn-sm me-2"
-                  onClick={() => handleEdit(mesa)}
-                >
-                  Editar
-                </button>
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => handleDelete(mesa.id)}
-                >
-                  Eliminar
-                </button>
-              </td>
-            </tr>
-          ))}
+          {mesas.map((mesa) => {
+            console.log("RENDER MESA", mesa);
+            return (
+              <tr key={mesa.id}>
+                <td>{mesa.materia || "-"}</td>
+                <td>{mesa.fecha}</td>
+                <td>{mesa.hora}</td>
+                <td>{mesa.aula || "-"}</td>
+                <td>{mesa.docentes?.[0]?.nombre || "-"}</td>
+                <td>{mesa.docentes?.[1]?.nombre || "-"}</td>
+                <td>
+                  <button
+                    className="btn btn-primary btn-sm me-2"
+                    onClick={() => handleEdit(mesa)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(mesa.id)}
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {showForm && (

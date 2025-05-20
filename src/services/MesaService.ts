@@ -64,7 +64,7 @@ export class MesaService {
   }
 
   public async enviarRecordatorio(mesaId: string): Promise<void> {
-    const mesas = this.mesaRepository.getAllMesas();
+    const mesas = await this.mesaRepository.getAllMesas();
     const mesa = mesas.find((m) => m.id === mesaId);
 
     if (mesa) {

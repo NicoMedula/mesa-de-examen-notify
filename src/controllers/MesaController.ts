@@ -84,7 +84,7 @@ export class MesaController {
         materia,
         fecha,
         hora,
-        ubicacion: aula,
+        aula,
         docentes,
       };
       console.log("Intentando crear mesa en Supabase:", mesaObj);
@@ -115,7 +115,8 @@ export class MesaController {
         .getAllMesas()
         .then((mesas) => mesas.find((m) => m.id === mesaId));
       if (!mesaActual) {
-        return res.status(404).json({ error: "Mesa no encontrada" });
+        res.status(404).json({ error: "Mesa no encontrada" });
+        return;
       }
       // Actualizar docentes: si cambió alguno, ponerlo en pendiente
       const nuevosDocentes = [
@@ -140,7 +141,7 @@ export class MesaController {
       const mesaActualizada = await this.mesaService.updateMesa(mesaId, {
         fecha,
         hora,
-        ubicacion: aula,
+        aula,
         docentes: nuevosDocentes,
       });
       res.json(mesaActualizada);
