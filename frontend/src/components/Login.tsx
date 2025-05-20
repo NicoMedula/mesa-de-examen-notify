@@ -26,6 +26,11 @@ const Login: React.FC = () => {
         return;
       }
 
+      // Guardar el id del docente en localStorage si el rol es docente
+      if (role === "docente") {
+        localStorage.setItem("docenteId", result.user.id);
+      }
+
       // Redirección basada en el rol
       window.location.href = role === "docente" ? "/docente" : "/departamento";
     } catch (error: any) {

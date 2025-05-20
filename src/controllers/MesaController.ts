@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { MesaService } from "../services/MesaService";
+import { v4 as uuidv4 } from "uuid";
 
 // Patrón Singleton: Única instancia de MesaController
 export class MesaController {
@@ -63,8 +64,31 @@ export class MesaController {
 
   public async createMesa(req: Request, res: Response): Promise<void> {
     try {
-      const mesa = req.body;
-      const nuevaMesa = await this.mesaService.createMesa(mesa);
+      const { materia, fecha, hora, aula, docente_titular, docente_vocal } =
+        req.body;
+      // Crear array de docentes con confirmación pendiente
+      const docentes = [
+        {
+          id: docente_titular,
+          nombre: await this.getNombreDocente(docente_titular),
+          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+        },
+        {
+          id: docente_vocal,
+          nombre: await this.getNombreDocente(docente_vocal),
+          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+        },
+      ];
+      const mesaObj = {
+        id: uuidv4(),
+        materia,
+        fecha,
+        hora,
+        ubicacion: aula,
+        docentes,
+      };
+      console.log("Intentando crear mesa en Supabase:", mesaObj);
+      const nuevaMesa = await this.mesaService.createMesa(mesaObj);
       res.status(201).json(nuevaMesa);
     } catch (error) {
       console.error("Error en createMesa:", error);
@@ -72,12 +96,54 @@ export class MesaController {
     }
   }
 
+  private async getNombreDocente(id: string): Promise<string> {
+    // Busca el nombre del docente en la tabla profiles
+    const { data, error } = await require("../config/supabase")
+      .supabase.from("profiles")
+      .select("nombre")
+      .eq("id", id)
+      .single();
+    return data?.nombre || "";
+  }
+
   public async updateMesa(req: Request, res: Response): Promise<void> {
     try {
       const { mesaId } = req.params;
-      const mesaActualizada = req.body;
-      const mesa = await this.mesaService.updateMesa(mesaId, mesaActualizada);
-      res.json(mesa);
+      const { fecha, hora, aula, docente_titular, docente_vocal } = req.body;
+      // Obtener la mesa actual
+      const mesaActual = await this.mesaService
+        .getAllMesas()
+        .then((mesas) => mesas.find((m) => m.id === mesaId));
+      if (!mesaActual) {
+        return res.status(404).json({ error: "Mesa no encontrada" });
+      }
+      // Actualizar docentes: si cambió alguno, ponerlo en pendiente
+      const nuevosDocentes = [
+        {
+          id: docente_titular,
+          nombre: await this.getNombreDocente(docente_titular),
+          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+        },
+        {
+          id: docente_vocal,
+          nombre: await this.getNombreDocente(docente_vocal),
+          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+        },
+      ];
+      // Mantener confirmación si el docente ya estaba y no cambió
+      for (const nuevo of nuevosDocentes) {
+        const anterior = mesaActual.docentes.find((d) => d.id === nuevo.id);
+        if (anterior) {
+          nuevo.confirmacion = anterior.confirmacion;
+        }
+      }
+      const mesaActualizada = await this.mesaService.updateMesa(mesaId, {
+        fecha,
+        hora,
+        ubicacion: aula,
+        docentes: nuevosDocentes,
+      });
+      res.json(mesaActualizada);
     } catch (error) {
       console.error("Error en updateMesa:", error);
       res.status(500).json({ error: "Error al actualizar la mesa" });

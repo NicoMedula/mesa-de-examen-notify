@@ -1,98 +1,115 @@
-import { Mesa, MesasData } from "../types";
-import * as fs from "fs";
-import * as path from "path";
+import { Mesa } from "../types";
+import { supabase } from "../config/supabase";
 
 // Patrón Singleton: Garantiza una única instancia de MesaRepository
 // Patrón Repository: Encapsula el acceso a los datos de mesas
 export class MesaRepository {
   private static instance: MesaRepository;
-  private readonly dataPath: string;
 
-  private constructor() {
-    this.dataPath = path.join(__dirname, "../data/mesas.json");
-    // console.log("Ruta de mesas.json:", this.dataPath); // LOG de ruta
-  }
+  private constructor() {}
 
   public static getInstance(): MesaRepository {
     if (!MesaRepository.instance) {
       MesaRepository.instance = new MesaRepository();
     }
-
     return MesaRepository.instance;
   }
 
-  private readData(): MesasData {
-    const data = fs.readFileSync(this.dataPath, "utf-8");
-    // console.log("Contenido bruto leído:", data); // LOG de contenido
-    return JSON.parse(data);
+  public async getAllMesas(): Promise<Mesa[]> {
+    const { data, error } = await supabase.from("mesas").select("*");
+    if (error) throw new Error(error.message);
+    // Adaptar los datos para que coincidan con la interfaz Mesa
+    return (data || []).map(this.adaptMesaFromDB);
   }
 
-  private writeData(data: MesasData): void {
-    fs.writeFileSync(this.dataPath, JSON.stringify(data, null, 2));
+  public async getMesasByDocenteId(docenteId: string): Promise<Mesa[]> {
+    const { data, error } = await supabase
+      .from("mesas")
+      .select("*")
+      .or(`docente_titular.eq.${docenteId},docente_vocal.eq.${docenteId}`);
+    if (error) throw new Error(error.message);
+    return (data || []).map(this.adaptMesaFromDB);
   }
 
-  public getAllMesas(): Mesa[] {
-    const mesas = this.readData().mesas;
-    // console.log("Mesas leídas:", mesas); // LOG de mesas
-    return mesas;
+  public async createMesa(mesa: Mesa): Promise<Mesa> {
+    const { error } = await supabase
+      .from("mesas")
+      .insert([this.adaptMesaToDB(mesa)]);
+    if (error) throw new Error(error.message);
+    return mesa;
   }
 
-  public getMesasByDocenteId(docenteId: string): Mesa[] {
-    const mesas = this.getAllMesas();
-    const filtradas = mesas.filter((mesa) =>
-      mesa.docentes.some((docente) => docente.id === docenteId)
-    );
-    // console.log(`Buscando mesas para docente ${docenteId}:`, filtradas); // LOG de búsqueda
-    return filtradas;
+  public async updateMesa(
+    mesaId: string,
+    mesaActualizada: Partial<Mesa>
+  ): Promise<Mesa> {
+    const { error } = await supabase
+      .from("mesas")
+      .update(this.adaptMesaToDB(mesaActualizada))
+      .eq("id", mesaId);
+    if (error) throw new Error(error.message);
+    // Devolver la mesa actualizada
+    const { data } = await supabase
+      .from("mesas")
+      .select("*")
+      .eq("id", mesaId)
+      .single();
+    return this.adaptMesaFromDB(data);
   }
 
-  public updateConfirmacion(
+  public async deleteMesa(mesaId: string): Promise<void> {
+    const { error } = await supabase.from("mesas").delete().eq("id", mesaId);
+    if (error) throw new Error(error.message);
+  }
+
+  public async updateConfirmacion(
     mesaId: string,
     docenteId: string,
     confirmacion: "aceptado" | "rechazado"
-  ): Mesa {
-    const data = this.readData();
-    const mesa = data.mesas.find((m) => m.id === mesaId);
-
-    if (!mesa) {
-      throw new Error("Mesa no encontrada");
-    }
-
-    const docente = mesa.docentes.find((d) => d.id === docenteId);
-    if (!docente) {
-      throw new Error("Docente no encontrado en la mesa");
-    }
-
-    docente.confirmacion = confirmacion;
-    this.writeData(data);
-    return mesa;
+  ): Promise<Mesa> {
+    // Obtener la mesa
+    const { data, error } = await supabase
+      .from("mesas")
+      .select("*")
+      .eq("id", mesaId)
+      .single();
+    if (error || !data) throw new Error("Mesa no encontrada");
+    // Actualizar el estado de confirmación
+    let docentes = data.docentes || [];
+    docentes = docentes.map((d: any) =>
+      d.id === docenteId ? { ...d, confirmacion } : d
+    );
+    // Guardar
+    const { error: updateError } = await supabase
+      .from("mesas")
+      .update({ docentes })
+      .eq("id", mesaId);
+    if (updateError) throw new Error(updateError.message);
+    return this.adaptMesaFromDB({ ...data, docentes });
   }
 
-  public createMesa(mesa: Mesa): Mesa {
-    const data = this.readData();
-    data.mesas.push(mesa);
-    this.writeData(data);
-    return mesa;
+  // Adaptadores para convertir entre el modelo de la DB y el de la app
+  private adaptMesaFromDB(dbMesa: any): Mesa {
+    return {
+      id: dbMesa.id,
+      materia: dbMesa.materia,
+      fecha: dbMesa.fecha,
+      hora: dbMesa.hora,
+      aula: dbMesa.aula,
+      docentes: dbMesa.docentes || [],
+    };
   }
 
-  public updateMesa(mesaId: string, mesaActualizada: Partial<Mesa>): Mesa {
-    const data = this.readData();
-    const mesa = data.mesas.find((m) => m.id === mesaId);
-    if (!mesa) {
-      throw new Error("Mesa no encontrada");
-    }
-    Object.assign(mesa, mesaActualizada);
-    this.writeData(data);
-    return mesa;
-  }
-
-  public deleteMesa(mesaId: string): void {
-    const data = this.readData();
-    const index = data.mesas.findIndex((m) => m.id === mesaId);
-    if (index === -1) {
-      throw new Error("Mesa no encontrada");
-    }
-    data.mesas.splice(index, 1);
-    this.writeData(data);
+  private adaptMesaToDB(mesa: any): any {
+    return {
+      id: mesa.id,
+      fecha: mesa.fecha,
+      hora: mesa.hora,
+      aula: mesa.aula || mesa.ubicacion,
+      materia: mesa.materia,
+      docente_titular: mesa.docentes?.[0]?.id || null,
+      docente_vocal: mesa.docentes?.[1]?.id || null,
+      docentes: mesa.docentes,
+    };
   }
 }

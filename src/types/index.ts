@@ -10,9 +10,10 @@ export interface Docente {
 
 export interface Mesa {
   id: string;
+  materia: string;
   fecha: string;
   hora: string;
-  ubicacion: string;
+  aula: string;
   docentes: Docente[];
 }
 

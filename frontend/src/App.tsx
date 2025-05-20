@@ -8,6 +8,7 @@ import {
 import Login from "./components/Login";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DepartamentoDashboard from "./components/DepartamentoDashboard";
+import DocenteDashboard from "./components/DocenteDashboard";
 
 const App: React.FC = () => {
   return (
@@ -15,6 +16,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/departamento" element={<DepartamentoDashboard />} />
+        <Route path="/docente" element={<DocenteDashboard />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         {/* Aquí agregaremos más rutas cuando las creemos */}
       </Routes>

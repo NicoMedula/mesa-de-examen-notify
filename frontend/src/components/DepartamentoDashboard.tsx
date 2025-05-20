@@ -15,6 +15,7 @@ interface Mesa {
   aula: string;
   docente_titular: string;
   docente_vocal: string;
+  docentes?: { id: string; nombre: string; confirmacion: string }[];
 }
 
 const DepartamentoDashboard: React.FC = () => {
@@ -22,7 +23,7 @@ const DepartamentoDashboard: React.FC = () => {
   const [docentes, setDocentes] = useState<Docente[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
-  const [form, setForm] = useState<Partial<Mesa>>({});
+  const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
 
   // Cargar mesas y docentes
@@ -41,16 +42,54 @@ const DepartamentoDashboard: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const generateId = () =>
+    Date.now().toString() + Math.random().toString(36).substring(2);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!form.docente_titular || !form.docente_vocal) {
+      setError("Debes seleccionar un docente titular y un docente vocal.");
+      return;
+    }
     if (form.docente_titular === form.docente_vocal) {
       setError("El titular y el vocal deben ser diferentes");
       return;
     }
+    // Construir array de docentes solo si ambos están presentes
+    const docentesArr = [
+      {
+        id: form.docente_titular,
+        nombre:
+          form.docentes?.find((d: any) => d.id === form.docente_titular)
+            ?.nombre ||
+          docentes.find((d) => d.id === form.docente_titular)?.nombre ||
+          "",
+        confirmacion:
+          form.docentes?.find((d: any) => d.id === form.docente_titular)
+            ?.confirmacion || "pendiente",
+      },
+      {
+        id: form.docente_vocal,
+        nombre:
+          form.docentes?.find((d: any) => d.id === form.docente_vocal)
+            ?.nombre ||
+          docentes.find((d) => d.id === form.docente_vocal)?.nombre ||
+          "",
+        confirmacion:
+          form.docentes?.find((d: any) => d.id === form.docente_vocal)
+            ?.confirmacion || "pendiente",
+      },
+    ];
     const mesaData = {
-      ...form,
-      id: editMesa ? editMesa.id : crypto.randomUUID(),
+      materia: form.materia,
+      fecha: form.fecha,
+      hora: form.hora,
+      aula: form.aula,
+      docentes: docentesArr,
+      docente_titular: form.docente_titular,
+      docente_vocal: form.docente_vocal,
+      id: editMesa ? editMesa.id : generateId(),
     };
     const url = editMesa
       ? `http://192.168.0.6:3001/api/mesas/${editMesa.id}`
@@ -76,7 +115,15 @@ const DepartamentoDashboard: React.FC = () => {
 
   const handleEdit = (mesa: Mesa) => {
     setEditMesa(mesa);
-    setForm(mesa);
+    setForm({
+      materia: mesa.materia,
+      fecha: mesa.fecha,
+      hora: mesa.hora,
+      aula: mesa.aula,
+      docente_titular: mesa.docentes?.[0]?.id || "",
+      docente_vocal: mesa.docentes?.[1]?.id || "",
+      docentes: mesa.docentes,
+    });
     setShowForm(true);
   };
 
