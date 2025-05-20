@@ -244,7 +244,7 @@ export class MesaRepository {
 
   private adaptMesaToDB(mesa: any): any {
     // Remover campos que no existen en la BD para evitar errores
-    return {
+    const resultado = {
       id: mesa.id,
       fecha: mesa.fecha,
       hora: mesa.hora,
@@ -253,6 +253,14 @@ export class MesaRepository {
       docente_titular: mesa.docentes?.[0]?.id || null,
       docente_vocal: mesa.docentes?.[1]?.id || null,
       docentes: mesa.docentes,
+      estado: mesa.estado // Incluir el estado para que se guarde en la BD
     };
+    
+    console.log('Adaptando mesa para BD:', {
+      ...resultado,
+      docentes: resultado.docentes ? "[Array de docentes]" : undefined
+    });
+    
+    return resultado;
   }
 }

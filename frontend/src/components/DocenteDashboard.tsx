@@ -102,7 +102,9 @@ const DocenteDashboard: React.FC = () => {
     
     try {
       console.log("Obteniendo mesas para docente ID:", docenteIdActual);
-      const res = await fetch(`http://localhost:3001/api/docente/${docenteIdActual}/mesas`);
+      // Agregamos un timestamp para evitar el caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`http://localhost:3001/api/docente/${docenteIdActual}/mesas?t=${timestamp}`);
       if (!res.ok) {
         console.error("Error al refrescar las mesas:", res.status);
         return;
@@ -110,38 +112,59 @@ const DocenteDashboard: React.FC = () => {
       const data = await res.json();
       
       if (Array.isArray(data)) {
-        console.log("Mesas recibidas del servidor:", data);
-        console.log("Estado de las mesas:", data.map(m => ({ id: m.id, estado: m.estado })));
+        console.log("%c Mesas recibidas del servidor: ", "background: #5cb85c; color: white; font-weight: bold", data.length);
         
-        // Obtener el docente actual
-        const currentDocenteId = docenteIdActual;
-        
-        // Mesas aceptadas por el docente, independientemente del estado general de la mesa
-        const confirmadas = data.filter(mesa => {
-          // Buscar este docente en la lista de docentes de la mesa
-          const docenteEnMesa = mesa.docentes.find((d: {id: string, nombre: string, confirmacion: string}) => d.id === currentDocenteId);
-          // Una mesa está en la lista de confirmadas si el docente la ha aceptado
-          return docenteEnMesa && docenteEnMesa.confirmacion === "aceptado";
+        // Logear todas las mesas y sus docentes para depurar
+        data.forEach(mesa => {
+          const estadoColor = mesa.estado === 'confirmada' ? 'color: green; font-weight: bold' : 'color: orange';
+          console.log(`Mesa ID: ${mesa.id}, Materia: %c${mesa.materia}%c, Estado: %c${mesa.estado || 'sin estado'}`, 
+                      'color: blue', 'color: black', estadoColor);
+          
+          console.group('Docentes asignados:');
+          if (mesa.docentes && Array.isArray(mesa.docentes)) {
+            mesa.docentes.forEach((d: any) => {
+              const esEsteDocente = d.id === docenteIdActual ? '👉 ' : '  - ';
+              console.log(`${esEsteDocente}ID: ${d.id}, Nombre: ${d.nombre}, Confirmacion: ${d.confirmacion}`);
+            });
+          } else {
+            console.log('  No hay docentes asignados o el formato es incorrecto');
+          }
+          console.groupEnd();
         });
         
-        // Mesas pendientes que requieren acción del docente (incluyendo mesas cuya confirmación fue cancelada)
-        const pendientes = data.filter(mesa => {
-          // Buscar este docente en la lista de docentes de la mesa
-          const docenteEnMesa = mesa.docentes.find((d: {id: string, nombre: string, confirmacion: string}) => d.id === currentDocenteId);
-          // Una mesa está pendiente si el docente no la ha confirmado o si su confirmación se resetó a pendiente
-          return docenteEnMesa && docenteEnMesa.confirmacion === "pendiente";
+        // Simplemente mostrar todas las mesas donde el docente aparece
+        const todasMesasDelDocente = data.filter(mesa => 
+          mesa.docentes && 
+          Array.isArray(mesa.docentes) && 
+          mesa.docentes.some((d: any) => d.id === docenteIdActual)
+        );
+        
+        console.log(`%c Total mesas encontradas para el docente ${docenteIdActual}: ${todasMesasDelDocente.length}`, 
+                    "background: #f0ad4e; color: white; font-weight: bold");
+        
+        // Dividir por estado de la mesa (no por estado del docente)
+        const mesasConfirmadas = todasMesasDelDocente.filter(mesa => {
+          const esConfirmada = mesa.estado === 'confirmada';
+          console.log(`Mesa ${mesa.id} (${mesa.materia}): estado = ${mesa.estado}, ¿es confirmada? ${esConfirmada ? 'SÍ' : 'NO'}`);
+          return esConfirmada;
         });
         
-        console.log("Mesas confirmadas:", confirmadas.length);
-        console.log("Mesas pendientes:", pendientes.length);
+        const mesasPendientes = todasMesasDelDocente.filter(mesa => mesa.estado !== 'confirmada');
         
-        // En desarrollo, loguear para debugging
-        if (confirmadas.length > 0) {
-          console.log("Estado de mesas confirmadas:", confirmadas.map(m => m.estado));
+        console.log(`%c Mesas confirmadas: ${mesasConfirmadas.length}, Mesas pendientes: ${mesasPendientes.length}`, 
+                    "background: #5bc0de; color: white; font-weight: bold");
+        
+        // Debug: mostrar las mesas confirmadas en detalle
+        if (mesasConfirmadas.length > 0) {
+          console.group("%c DETALLE DE MESAS CONFIRMADAS", "background: green; color: white;");
+          mesasConfirmadas.forEach(mesa => {
+            console.log(`Mesa confirmada: ID=${mesa.id}, Materia=${mesa.materia}, Estado EXACTO='${mesa.estado}'`);
+          });
+          console.groupEnd();
         }
         
-        setMesasConfirmadas(confirmadas);
-        setMesas(pendientes);
+        setMesasConfirmadas(mesasConfirmadas);
+        setMesas(mesasPendientes);
         setLoading(false);
       }
     } catch (error) {

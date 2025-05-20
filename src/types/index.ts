@@ -16,7 +16,7 @@ export interface Mesa {
   fecha: string;
   hora: string;
   aula: string;
-  estado?: EstadoMesa; // Campo opcional ya que no existe en la tabla de la BD
+  estado: EstadoMesa; // Campo ahora es obligatorio ya que se agregó a la tabla de la BD
   docentes: Docente[];
 }
 

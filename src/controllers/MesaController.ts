@@ -151,7 +151,7 @@ export class MesaController {
           fecha,
           hora,
           aula: aula || "", // Asegurar que aula no sea null
-          // Eliminado el campo 'estado' porque no existe en la tabla de la BD
+          estado: "pendiente" as import("../types").EstadoMesa, // Usar el tipo correcto
           docentes,
         };
         
@@ -189,7 +189,9 @@ export class MesaController {
   public async updateMesa(req: Request, res: Response): Promise<void> {
     try {
       const { mesaId } = req.params;
-      const { fecha, hora, aula, estado, docente_titular, docente_vocal } = req.body;
+      const { fecha, hora, aula, estado, docente_titular, docente_vocal, docentes } = req.body;
+      console.log("Actualizando mesa:", mesaId, "con body:", req.body);
+      
       // Obtener la mesa actual
       const mesaActual = await this.mesaService
         .getAllMesas()
@@ -198,31 +200,44 @@ export class MesaController {
         res.status(404).json({ error: "Mesa no encontrada" });
         return;
       }
-      // Actualizar docentes: si cambió alguno, ponerlo en pendiente
-      const nuevosDocentes = [
-        {
-          id: docente_titular,
-          nombre: await this.getNombreDocente(docente_titular),
-          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
-        },
-        {
-          id: docente_vocal,
-          nombre: await this.getNombreDocente(docente_vocal),
-          confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
-        },
-      ];
-      // Mantener confirmación si el docente ya estaba y no cambió
-      for (const nuevo of nuevosDocentes) {
-        const anterior = mesaActual.docentes.find((d) => d.id === nuevo.id);
-        if (anterior) {
-          nuevo.confirmacion = anterior.confirmacion;
+      
+      // Si se enviu00f3 un array de docentes (caso de cancelaciu00f3n), usarlo direcamente
+      let nuevosDocentes;
+      if (docentes && Array.isArray(docentes)) {
+        console.log("Usando docentes enviados desde frontend:", docentes);
+        nuevosDocentes = docentes;
+      } else if (docente_titular && docente_vocal) {
+        // Caso: actualizaciu00f3n normal de la mesa con nuevos docentes
+        console.log("Creando nuevos docentes a partir de titular/vocal");
+        nuevosDocentes = [
+          {
+            id: docente_titular,
+            nombre: await this.getNombreDocente(docente_titular),
+            confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+          },
+          {
+            id: docente_vocal,
+            nombre: await this.getNombreDocente(docente_vocal),
+            confirmacion: "pendiente" as import("../types").EstadoConfirmacion,
+          },
+        ];
+        // Mantener confirmación si el docente ya estaba y no cambió
+        for (const nuevo of nuevosDocentes) {
+          const anterior = mesaActual.docentes.find((d) => d.id === nuevo.id);
+          if (anterior) {
+            nuevo.confirmacion = anterior.confirmacion;
+          }
         }
+      } else {
+        // Si no hay ni docentes ni titular/vocal, mantener los actuales
+        nuevosDocentes = mesaActual.docentes;
       }
+      
       const mesaActualizada = await this.mesaService.updateMesa(mesaId, {
-        fecha,
-        hora,
-        aula,
-        estado,
+        fecha: fecha || mesaActual.fecha,
+        hora: hora || mesaActual.hora,
+        aula: aula !== undefined ? aula : mesaActual.aula,
+        estado: estado || mesaActual.estado,
         docentes: nuevosDocentes,
       });
       res.json(mesaActualizada);
