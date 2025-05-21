@@ -36,7 +36,32 @@ const DepartamentoDashboard: React.FC = () => {
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  
+  // Efecto para limpiar el mensaje de error después de un tiempo
+  useEffect(() => {
+    let errorTimeout: NodeJS.Timeout;
+    
+    if (error) {
+      // Configurar un temporizador para limpiar el error después de 4 segundos
+      errorTimeout = setTimeout(() => {
+        setError(null);
+      }, 4000); // 4000 ms = 4 segundos
+    }
+    
+    // Limpiar el temporizador cuando el componente se desmonte o el error cambie
+    return () => {
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, [error]); // Se vuelve a ejecutar cada vez que cambia el error
   const [activeTab, setActiveTab] = useState("pendientes");
+  
+  // Función para mostrar errores temporales
+  const showTemporaryError = (errorMessage: string) => {
+    setError(errorMessage);
+    // El useEffect se encargará de limpiar automáticamente el error después de 4 segundos
+  };
 
   // Cargar mesas y docentes
   useEffect(() => {
@@ -106,15 +131,47 @@ const DepartamentoDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    // Validaciones básicas del formulario
     if (!form.materia || !form.docente_titular || !form.docente_vocal) {
-      setError(
+      showTemporaryError(
         "Debes completar materia y seleccionar un docente titular y un docente vocal."
       );
       return;
     }
+    
     if (form.docente_titular === form.docente_vocal) {
-      setError("El titular y el vocal deben ser diferentes");
+      showTemporaryError("El titular y el vocal deben ser diferentes");
       return;
+    }
+    
+    // Validación de la fecha - no permite fechas pasadas o con menos de 48 horas
+    if (form.fecha) {
+      const fechaSeleccionada = new Date(form.fecha);
+      fechaSeleccionada.setHours(23, 59, 59, 999);
+      
+      const ahora = new Date();
+      
+      // Validación: No permitir fechas en el pasado (comparación por días)
+      const fechaSeleccionadaDia = new Date(fechaSeleccionada);
+      fechaSeleccionadaDia.setHours(0, 0, 0, 0);
+      
+      const ahoraDia = new Date(ahora);
+      ahoraDia.setHours(0, 0, 0, 0);
+      
+      if (fechaSeleccionadaDia < ahoraDia) {
+        showTemporaryError("No se puede crear una mesa con fecha en el pasado");
+        return;
+      }
+      
+      // Validación: Comprobar el margen de 48 horas
+      const diffMs = fechaSeleccionada.getTime() - ahora.getTime();
+      const diffHoras = diffMs / (1000 * 60 * 60);
+      
+      if (diffHoras < 48) {
+        showTemporaryError(`La fecha de la mesa debe ser al menos 48 horas (2 días) en el futuro. Horas actuales: ${diffHoras.toFixed(1)}`);
+        return;
+      }
     }
     const docentesArr = [
       {
@@ -199,7 +256,7 @@ const DepartamentoDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error al guardar la mesa:", error);
-      setError(`Error al guardar la mesa: ${error?.message || String(error)}`);
+      showTemporaryError(`Error al guardar la mesa: ${error?.message || String(error)}`);
     }
   };
 

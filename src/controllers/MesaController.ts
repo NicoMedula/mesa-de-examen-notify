@@ -162,6 +162,27 @@ export class MesaController {
       } catch (serviceError: any) {
         // Manejar errores específicos del servicio
         console.error("Error del servicio al crear mesa:", serviceError);
+        
+        // Diferenciar entre errores de validación y errores internos
+        // Enviar código 400 para errores de validación
+        if (
+          serviceError.message && (
+            serviceError.message.includes("en el pasado") || 
+            serviceError.message.includes("48 horas") || 
+            serviceError.message.includes("obligatoria") || 
+            serviceError.message.includes("se requieren") || 
+            serviceError.message.includes("Conflicto de horario")
+          )
+        ) {
+          console.error("Error de validación al crear mesa:", serviceError.message);
+          res.status(400).json({ 
+            error: "Error de validación",
+            detalle: serviceError.message
+          });
+          return;
+        }
+        
+        // Para otros errores, seguir usando 500
         res.status(500).json({ 
           error: "Error al crear la mesa",
           detalle: serviceError.message || "Error desconocido"

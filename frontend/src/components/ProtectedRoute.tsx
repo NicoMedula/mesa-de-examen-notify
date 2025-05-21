@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element, allowedRole })
   
   // Mientras verificamos la autenticación, mostramos nada
   if (isAuthenticated === null) {
-    return null; // O un spinner/loader si prefieres
+    return null; 
   }
   
   // Si está autenticado y tiene el rol correcto, mostrar el elemento

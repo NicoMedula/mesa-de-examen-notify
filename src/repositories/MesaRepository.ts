@@ -57,6 +57,48 @@ export class MesaRepository {
         throw new Error("La fecha es obligatoria");
       }
       
+      // Validar que la fecha no esté en el pasado y sea al menos 48 horas en el futuro
+      console.log("Validando fecha de mesa:", mesa.fecha);
+      
+      // Convertir la cadena de fecha a objeto Date - asegurar formato correcto
+      const fechaParts = mesa.fecha.split('T')[0].split('-');
+      const anio = parseInt(fechaParts[0]);
+      const mes = parseInt(fechaParts[1]) - 1; // Los meses en JavaScript son de 0-11
+      const dia = parseInt(fechaParts[2]);
+      
+      const fechaMesa = new Date(anio, mes, dia);
+      fechaMesa.setHours(23, 59, 59, 999); // Ajustar al final del día para la comparación correcta
+      
+      const ahora = new Date();
+      
+      console.log(`DEBUG - Fecha mesa parseada: ${fechaMesa.toISOString()}`);
+      console.log(`DEBUG - Fecha actual: ${ahora.toISOString()}`);
+      console.log(`DEBUG - ¿Fecha en el pasado? ${fechaMesa < ahora}`);
+      
+      // Verificar si la fecha está en el pasado (comparación de días, no de horas)
+      const fechaMesaDia = new Date(fechaMesa);
+      fechaMesaDia.setHours(0, 0, 0, 0);
+      
+      const ahoraDia = new Date(ahora);
+      ahoraDia.setHours(0, 0, 0, 0);
+      
+      if (fechaMesaDia < ahoraDia) {
+        console.error("Fecha invalida: está en el pasado");
+        throw new Error("No se puede crear una mesa con fecha en el pasado");
+      }
+      
+      // Calcular la diferencia en milisegundos y convertir a horas
+      const diffMs = fechaMesa.getTime() - ahora.getTime();
+      const diffHoras = diffMs / (1000 * 60 * 60);
+      
+      console.log(`DEBUG - Diferencia en horas: ${diffHoras}`);
+      
+      if (diffHoras < 48) {
+        console.error(`Fecha invalida: diferencia de solo ${diffHoras} horas, se requieren 48 horas`);
+        throw new Error(`La fecha de la mesa debe ser al menos 48 horas (2 días) en el futuro. Horas actuales: ${diffHoras.toFixed(1)}`);
+      }
+
+      
       if (!mesa.docentes || !Array.isArray(mesa.docentes) || mesa.docentes.length < 2) {
         throw new Error("Se requieren al menos dos docentes para una mesa");
       }
