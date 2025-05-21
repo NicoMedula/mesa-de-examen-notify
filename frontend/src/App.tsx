@@ -11,6 +11,7 @@ import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import DepartamentoDashboard from "./components/DepartamentoDashboard";
 import DocenteDashboard from "./components/DocenteDashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { Helmet } from "react-helmet";
 
 // Componente para gestionar y aislar el almacenamiento para cada ruta
@@ -71,8 +72,8 @@ const App: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/departamento" element={<DepartamentoDashboard />} />
-          <Route path="/docente" element={<DocenteDashboard />} />
+          <Route path="/departamento" element={<ProtectedRoute element={<DepartamentoDashboard />} allowedRole="departamento" />} />
+          <Route path="/docente" element={<ProtectedRoute element={<DocenteDashboard />} allowedRole="docente" />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </RouteStorageManager>
