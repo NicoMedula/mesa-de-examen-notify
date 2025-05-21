@@ -21,11 +21,11 @@ interface Mesa {
 // Usar sessionStorage con el contexto de ruta para evitar conflictos entre pestan00f1as
 const getDepartamentoPath = () => {
   // Verificar si estamos en el contexto de departamento
-  const path = sessionStorage.getItem('currentPath');
-  if (path !== 'departamento') {
-    console.warn('No estamos en el contexto del departamento:', path);
+  const path = sessionStorage.getItem("currentPath");
+  if (path !== "departamento") {
+    console.warn("No estamos en el contexto del departamento:", path);
   }
-  return path === 'departamento';
+  return path === "departamento";
 };
 
 const DepartamentoDashboard: React.FC = () => {
@@ -36,7 +36,7 @@ const DepartamentoDashboard: React.FC = () => {
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('pendientes');
+  const [activeTab, setActiveTab] = useState("pendientes");
 
   // Cargar mesas y docentes
   useEffect(() => {
@@ -49,12 +49,16 @@ const DepartamentoDashboard: React.FC = () => {
         }
         const data = await res.json();
         console.log("MESAS DESDE BACKEND", data);
-        
+
         // Verificar que data sea un array antes de procesarlo
         if (Array.isArray(data)) {
           // Separar mesas confirmadas y pendientes
-          const confirmadas = data.filter((m: Mesa) => m?.estado === "confirmada");
-          const pendientes = data.filter((m: Mesa) => m?.estado !== "confirmada");
+          const confirmadas = data.filter(
+            (m: Mesa) => m?.estado === "confirmada"
+          );
+          const pendientes = data.filter(
+            (m: Mesa) => m?.estado !== "confirmada"
+          );
           setMesasConfirmadas(confirmadas || []);
           setMesas(pendientes || []);
         } else {
@@ -129,11 +133,11 @@ const DepartamentoDashboard: React.FC = () => {
             ?.confirmacion || "pendiente",
       },
     ];
-    
+
     // Crear un ID limpio para evitar problemas con la API
     const newId = editMesa ? editMesa.id : generateId();
     console.log("ID generado para la mesa:", newId);
-    
+
     const mesaData = {
       materia: form.materia,
       fecha: form.fecha,
@@ -145,32 +149,32 @@ const DepartamentoDashboard: React.FC = () => {
       docente_vocal: form.docente_vocal,
       id: newId,
     };
-    
+
     try {
       const url = editMesa
         ? `http://localhost:3001/api/mesas/${editMesa.id}`
         : "http://localhost:3001/api/mesas";
       const method = editMesa ? "PUT" : "POST";
-      
+
       console.log(`${method} request to ${url} with data:`, mesaData);
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(mesaData),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error(`Error ${res.status} al guardar la mesa:`, errorText);
         setError(`Error al guardar la mesa: ${res.status} ${errorText}`);
         return;
       }
-      
+
       setShowForm(false);
       setEditMesa(null);
       setForm({});
-      
+
       // Refrescar la lista de mesas con manejo de errores
       try {
         const mesasRes = await fetch("http://localhost:3001/api/mesas");
@@ -179,10 +183,14 @@ const DepartamentoDashboard: React.FC = () => {
           return;
         }
         const mesasData = await mesasRes.json();
-        
+
         if (Array.isArray(mesasData)) {
-          const confirmadas = mesasData.filter((m) => m?.estado === "confirmada");
-          const pendientes = mesasData.filter((m) => m?.estado !== "confirmada");
+          const confirmadas = mesasData.filter(
+            (m) => m?.estado === "confirmada"
+          );
+          const pendientes = mesasData.filter(
+            (m) => m?.estado !== "confirmada"
+          );
           setMesasConfirmadas(confirmadas);
           setMesas(pendientes);
         }
@@ -241,26 +249,26 @@ const DepartamentoDashboard: React.FC = () => {
   const handleConfirmMesa = async (mesaId: string) => {
     try {
       console.log("Confirming mesa with ID:", mesaId);
-      
+
       const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: "confirmada" }),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error(`Error ${res.status} al confirmar la mesa:`, errorText);
         setError(`Error al confirmar la mesa: ${res.status} ${errorText}`);
         return;
       }
-      
+
       // Actualizar las listas después de confirmar
-      const mesaConfirmada = mesas.find(m => m.id === mesaId);
+      const mesaConfirmada = mesas.find((m) => m.id === mesaId);
       if (mesaConfirmada) {
-        const updatedMesa = {...mesaConfirmada, estado: "confirmada"};
+        const updatedMesa = { ...mesaConfirmada, estado: "confirmada" };
         setMesasConfirmadas([...mesasConfirmadas, updatedMesa]);
-        setMesas(mesas.filter(m => m.id !== mesaId));
+        setMesas(mesas.filter((m) => m.id !== mesaId));
       } else {
         console.warn("Mesa not found in pending list:", mesaId);
         // Refrescar las listas completas para asegurar datos actualizados
@@ -268,53 +276,64 @@ const DepartamentoDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error al confirmar mesa:", error);
-      setError(`Error al confirmar la mesa: ${error?.message || String(error)}`);
+      setError(
+        `Error al confirmar la mesa: ${error?.message || String(error)}`
+      );
     }
   };
 
   const handleCancelMesa = async (mesaId: string) => {
     try {
       console.log("Canceling mesa with ID:", mesaId);
-      
+
       // Primero obtenemos la mesa para resets los estados de confirmación de los docentes a pendiente
-      const mesaCancelada = mesasConfirmadas.find(m => m.id === mesaId);
-      
+      const mesaCancelada = mesasConfirmadas.find((m) => m.id === mesaId);
+
       if (!mesaCancelada) {
-        console.warn("Mesa no encontrada en la lista de mesas confirmadas:", mesaId);
+        console.warn(
+          "Mesa no encontrada en la lista de mesas confirmadas:",
+          mesaId
+        );
         setError(`Error al cancelar: Mesa no encontrada`);
         return;
       }
-      
+
       // Reiniciamos el estado de confirmación de cada docente a pendiente
-      const docentesReiniciados = mesaCancelada.docentes.map(docente => ({
+      const docentesReiniciados = mesaCancelada.docentes.map((docente) => ({
         ...docente,
-        confirmacion: "pendiente"  // Resetear a pendiente para que el docente pueda confirmar nuevamente
+        confirmacion: "pendiente", // Resetear a pendiente para que el docente pueda confirmar nuevamente
       }));
-      
+
       // Enviamos la actualización con el cambio de estado y los docentes reiniciados
       const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           estado: "pendiente",
-          docentes: docentesReiniciados
+          docentes: docentesReiniciados,
         }),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error(`Error ${res.status} al cancelar la mesa:`, errorText);
         setError(`Error al cancelar la mesa: ${res.status} ${errorText}`);
         return;
       }
-      
+
       // Actualizar las listas después de cancelar
-      const updatedMesa = {...mesaCancelada, estado: "pendiente", docentes: docentesReiniciados};
+      const updatedMesa = {
+        ...mesaCancelada,
+        estado: "pendiente",
+        docentes: docentesReiniciados,
+      };
       setMesas([...mesas, updatedMesa]);
-      setMesasConfirmadas(mesasConfirmadas.filter(m => m.id !== mesaId));
-      
+      setMesasConfirmadas(mesasConfirmadas.filter((m) => m.id !== mesaId));
+
       // Mostrar mensaje de éxito
-      setError("La mesa ha sido cancelada. Los docentes podrán modificar su confirmación nuevamente.");
+      setError(
+        "La mesa ha sido cancelada. Los docentes podrán modificar su confirmación nuevamente."
+      );
       setTimeout(() => setError(null), 5000); // Limpiar el mensaje después de 5 segundos
     } catch (error: any) {
       console.error("Error al cancelar mesa:", error);
@@ -323,277 +342,425 @@ const DepartamentoDashboard: React.FC = () => {
   };
 
   return (
-    <div className="container mt-4">
-      <h2>Gestión de Mesas de Examen</h2>
-      <button
-        className="btn btn-success mb-3 me-2"
-        onClick={() => {
-          setShowForm(true);
-          setEditMesa(null);
-          setForm({});
-        }}
-      >
-        Nueva Mesa
-      </button>
-      
-      {/* Tabs de navegación */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'pendientes' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('pendientes')}
-          >
-            Mesas Pendientes
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'confirmadas' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('confirmadas')}
-          >
-            Mesas Confirmadas
-          </button>
-        </li>
-      </ul>
-      
-      {/* Tab de mesas pendientes */}
-      {activeTab === 'pendientes' && (
-        <>
-          {error && <div className="alert alert-danger">{error}</div>}
-          <table className="table table-bordered">
-            <thead>
-              <tr>
-                <th>Materia</th>
-                <th>Fecha</th>
-                <th>Hora</th>
-                <th>Aula</th>
-                <th>Docente Titular</th>
-                <th>Docente Vocal</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mesas.map((mesa) => {
-                console.log("RENDER MESA", mesa);
-                // Verificar si ambos docentes han aceptado
-                const bothAccepted = 
-                  mesa.docentes?.[0]?.confirmacion === "aceptado" && 
-                  mesa.docentes?.[1]?.confirmacion === "aceptado";
-                  
-                return (
-                  <tr key={mesa.id}>
-                    <td>{mesa.materia || "-"}</td>
-                    <td>{mesa.fecha}</td>
-                    <td>{mesa.hora}</td>
-                    <td>{mesa.aula || "-"}</td>
-                    <td>
-                      {mesa.docentes?.[0]?.nombre || "-"}
-                      {mesa.docentes?.[0]?.confirmacion && (
-                        <span className={`ms-2 badge ${
-                          mesa.docentes[0].confirmacion === "aceptado" ? "bg-success" : 
-                          mesa.docentes[0].confirmacion === "rechazado" ? "bg-danger" : "bg-warning"
-                        }`}>
-                          {mesa.docentes[0].confirmacion}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {mesa.docentes?.[1]?.nombre || "-"}
-                      {mesa.docentes?.[1]?.confirmacion && (
-                        <span className={`ms-2 badge ${
-                          mesa.docentes[1].confirmacion === "aceptado" ? "bg-success" : 
-                          mesa.docentes[1].confirmacion === "rechazado" ? "bg-danger" : "bg-warning"
-                        }`}>
-                          {mesa.docentes[1].confirmacion}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-primary btn-sm me-2"
-                        onClick={() => handleEdit(mesa)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm me-2"
-                        onClick={() => handleDelete(mesa.id)}
-                      >
-                        Eliminar
-                      </button>
-                      {bothAccepted && (
-                        <button
-                          className="btn btn-success btn-sm"
-                          onClick={() => handleConfirmMesa(mesa.id)}
-                        >
-                          Confirmar Mesa
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </>
-      )}
-      
-      {/* Tab de mesas confirmadas */}
-      {activeTab === 'confirmadas' && (
-        <table className="table table-bordered">
-          <thead>
-            <tr>
-              <th>Materia</th>
-              <th>Fecha</th>
-              <th>Hora</th>
-              <th>Aula</th>
-              <th>Docente Titular</th>
-              <th>Docente Vocal</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mesasConfirmadas.map((mesa) => (
-              <tr key={mesa.id}>
-                <td>{mesa.materia || "-"}</td>
-                <td>{mesa.fecha}</td>
-                <td>{mesa.hora}</td>
-                <td>{mesa.aula || "-"}</td>
-                <td>
-                  {mesa.docentes?.[0]?.nombre || "-"}
-                  {mesa.docentes?.[0]?.confirmacion && (
-                    <span className="ms-2 badge bg-success">
-                      {mesa.docentes[0].confirmacion}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  {mesa.docentes?.[1]?.nombre || "-"}
-                  {mesa.docentes?.[1]?.confirmacion && (
-                    <span className="ms-2 badge bg-success">
-                      {mesa.docentes[1].confirmacion}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <button
-                    className="btn btn-warning btn-sm"
-                    onClick={() => handleCancelMesa(mesa.id)}
-                  >
-                    Cancelar Mesa
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {showForm && (
-        <div className="card mt-4">
-          <div className="card-body">
-            <h5 className="card-title">
-              {editMesa ? "Editar Mesa" : "Nueva Mesa"}
-            </h5>
-            {error && <div className="alert alert-danger">{error}</div>}
-            <form onSubmit={handleSubmit}>
-              <div className="mb-2">
-                <label>Materia/Cátedra</label>
-                <input
-                  name="materia"
-                  className="form-control"
-                  value={form.materia || ""}
-                  onChange={handleInput}
-                  required
-                />
-              </div>
-              <div className="mb-2">
-                <label>Fecha</label>
-                <input
-                  name="fecha"
-                  type="date"
-                  className="form-control"
-                  value={form.fecha || ""}
-                  onChange={handleInput}
-                  required
-                />
-              </div>
-              <div className="mb-2">
-                <label>Hora</label>
-                <input
-                  name="hora"
-                  type="time"
-                  className="form-control"
-                  value={form.hora || ""}
-                  onChange={handleInput}
-                  required
-                />
-              </div>
-              <div className="mb-2">
-                <label>Aula</label>
-                <input
-                  name="aula"
-                  className="form-control"
-                  value={form.aula || ""}
-                  onChange={handleInput}
-                  required
-                />
-              </div>
-              <div className="mb-2">
-                <label>Docente Titular</label>
-                <select
-                  name="docente_titular"
-                  className="form-select"
-                  value={form.docente_titular || ""}
-                  onChange={handleInput}
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {docentes
-                    .filter((d) => d.id !== form.docente_vocal)
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nombre}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="mb-2">
-                <label>Docente Vocal</label>
-                <select
-                  name="docente_vocal"
-                  className="form-select"
-                  value={form.docente_vocal || ""}
-                  onChange={handleInput}
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {docentes
-                    .filter((d) => d.id !== form.docente_titular)
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nombre}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <button className="btn btn-primary mt-2" type="submit">
-                Guardar
-              </button>
-              <button
-                className="btn btn-secondary mt-2 ms-2"
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditMesa(null);
-                  setForm({});
-                }}
-              >
-                Cancelar
-              </button>
-            </form>
+    <div className="container-fluid px-lg-5">
+      <div className="row my-3">
+        <div className="col-12">
+          <h2 className="mb-3 text-center text-md-start">
+            Gestión de Mesas de Examen
+          </h2>
+
+          <div className="d-grid d-md-block mb-3">
+            <button
+              className="btn btn-success mb-2 mb-md-0 me-md-2"
+              onClick={() => {
+                setShowForm(true);
+                setEditMesa(null);
+                setForm({});
+              }}
+            >
+              Nueva Mesa
+            </button>
           </div>
+
+          {/* Tabs de navegación */}
+          <ul className="nav nav-tabs mb-3">
+            <li className="nav-item">
+              <button
+                className={`nav-link ${
+                  activeTab === "pendientes" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("pendientes")}
+              >
+                Mesas Pendientes
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                className={`nav-link ${
+                  activeTab === "confirmadas" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("confirmadas")}
+              >
+                Mesas Confirmadas
+              </button>
+            </li>
+          </ul>
+
+          {error && <div className="alert alert-danger">{error}</div>}
+
+          {/* Tab de mesas pendientes */}
+          {activeTab === "pendientes" && (
+            <>
+              {mesas.length === 0 ? (
+                <div className="alert alert-info">No hay mesas pendientes.</div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-bordered table-hover">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Materia</th>
+                        <th>Fecha</th>
+                        <th className="d-none d-md-table-cell">Hora</th>
+                        <th className="d-none d-md-table-cell">Aula</th>
+                        <th className="d-none d-lg-table-cell">
+                          Docente Titular
+                        </th>
+                        <th className="d-none d-lg-table-cell">
+                          Docente Vocal
+                        </th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mesas.map((mesa) => {
+                        // Verificar si ambos docentes han aceptado
+                        const bothAccepted =
+                          mesa.docentes?.[0]?.confirmacion === "aceptado" &&
+                          mesa.docentes?.[1]?.confirmacion === "aceptado";
+
+                        return (
+                          <tr key={mesa.id}>
+                            <td>
+                              <div>{mesa.materia || "-"}</div>
+                              <div className="d-md-none">
+                                <small className="text-muted">
+                                  Hora: {mesa.hora}
+                                </small>
+                              </div>
+                              <div className="d-md-none">
+                                <small className="text-muted">
+                                  Aula: {mesa.aula || "-"}
+                                </small>
+                              </div>
+                              <div className="d-lg-none mt-2">
+                                <small className="d-block text-muted">
+                                  <strong>Titular:</strong>{" "}
+                                  {mesa.docentes?.[0]?.nombre || "-"}
+                                  {mesa.docentes?.[0]?.confirmacion && (
+                                    <span
+                                      className={`ms-2 badge ${
+                                        mesa.docentes[0].confirmacion ===
+                                        "aceptado"
+                                          ? "bg-success"
+                                          : mesa.docentes[0].confirmacion ===
+                                            "rechazado"
+                                          ? "bg-danger"
+                                          : "bg-warning"
+                                      }`}
+                                    >
+                                      {mesa.docentes[0].confirmacion}
+                                    </span>
+                                  )}
+                                </small>
+                                <small className="d-block text-muted">
+                                  <strong>Vocal:</strong>{" "}
+                                  {mesa.docentes?.[1]?.nombre || "-"}
+                                  {mesa.docentes?.[1]?.confirmacion && (
+                                    <span
+                                      className={`ms-2 badge ${
+                                        mesa.docentes[1].confirmacion ===
+                                        "aceptado"
+                                          ? "bg-success"
+                                          : mesa.docentes[1].confirmacion ===
+                                            "rechazado"
+                                          ? "bg-danger"
+                                          : "bg-warning"
+                                      }`}
+                                    >
+                                      {mesa.docentes[1].confirmacion}
+                                    </span>
+                                  )}
+                                </small>
+                              </div>
+                            </td>
+                            <td>{mesa.fecha}</td>
+                            <td className="d-none d-md-table-cell">
+                              {mesa.hora}
+                            </td>
+                            <td className="d-none d-md-table-cell">
+                              {mesa.aula || "-"}
+                            </td>
+                            <td className="d-none d-lg-table-cell">
+                              {mesa.docentes?.[0]?.nombre || "-"}
+                              {mesa.docentes?.[0]?.confirmacion && (
+                                <span
+                                  className={`ms-2 badge ${
+                                    mesa.docentes[0].confirmacion === "aceptado"
+                                      ? "bg-success"
+                                      : mesa.docentes[0].confirmacion ===
+                                        "rechazado"
+                                      ? "bg-danger"
+                                      : "bg-warning"
+                                  }`}
+                                >
+                                  {mesa.docentes[0].confirmacion}
+                                </span>
+                              )}
+                            </td>
+                            <td className="d-none d-lg-table-cell">
+                              {mesa.docentes?.[1]?.nombre || "-"}
+                              {mesa.docentes?.[1]?.confirmacion && (
+                                <span
+                                  className={`ms-2 badge ${
+                                    mesa.docentes[1].confirmacion === "aceptado"
+                                      ? "bg-success"
+                                      : mesa.docentes[1].confirmacion ===
+                                        "rechazado"
+                                      ? "bg-danger"
+                                      : "bg-warning"
+                                  }`}
+                                >
+                                  {mesa.docentes[1].confirmacion}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="d-flex flex-column flex-sm-row gap-2">
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleEdit(mesa)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleDelete(mesa.id)}
+                                >
+                                  Eliminar
+                                </button>
+                                {bothAccepted && (
+                                  <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => handleConfirmMesa(mesa.id)}
+                                  >
+                                    Confirmar
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Tab de mesas confirmadas */}
+          {activeTab === "confirmadas" && (
+            <>
+              {mesasConfirmadas.length === 0 ? (
+                <div className="alert alert-info">
+                  No hay mesas confirmadas.
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-bordered table-hover">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Materia</th>
+                        <th>Fecha</th>
+                        <th className="d-none d-md-table-cell">Hora</th>
+                        <th className="d-none d-md-table-cell">Aula</th>
+                        <th className="d-none d-lg-table-cell">
+                          Docente Titular
+                        </th>
+                        <th className="d-none d-lg-table-cell">
+                          Docente Vocal
+                        </th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mesasConfirmadas.map((mesa) => (
+                        <tr key={mesa.id} className="table-success">
+                          <td>
+                            <div>{mesa.materia || "-"}</div>
+                            <div className="d-md-none">
+                              <small className="text-muted">
+                                Hora: {mesa.hora}
+                              </small>
+                            </div>
+                            <div className="d-md-none">
+                              <small className="text-muted">
+                                Aula: {mesa.aula || "-"}
+                              </small>
+                            </div>
+                            <div className="d-lg-none mt-2">
+                              <small className="d-block text-muted">
+                                <strong>Titular:</strong>{" "}
+                                {mesa.docentes?.[0]?.nombre || "-"}
+                                {mesa.docentes?.[0]?.confirmacion && (
+                                  <span className="ms-2 badge bg-success">
+                                    {mesa.docentes[0].confirmacion}
+                                  </span>
+                                )}
+                              </small>
+                              <small className="d-block text-muted">
+                                <strong>Vocal:</strong>{" "}
+                                {mesa.docentes?.[1]?.nombre || "-"}
+                                {mesa.docentes?.[1]?.confirmacion && (
+                                  <span className="ms-2 badge bg-success">
+                                    {mesa.docentes[1].confirmacion}
+                                  </span>
+                                )}
+                              </small>
+                            </div>
+                          </td>
+                          <td>{mesa.fecha}</td>
+                          <td className="d-none d-md-table-cell">
+                            {mesa.hora}
+                          </td>
+                          <td className="d-none d-md-table-cell">
+                            {mesa.aula || "-"}
+                          </td>
+                          <td className="d-none d-lg-table-cell">
+                            {mesa.docentes?.[0]?.nombre || "-"}
+                            {mesa.docentes?.[0]?.confirmacion && (
+                              <span className="ms-2 badge bg-success">
+                                {mesa.docentes[0].confirmacion}
+                              </span>
+                            )}
+                          </td>
+                          <td className="d-none d-lg-table-cell">
+                            {mesa.docentes?.[1]?.nombre || "-"}
+                            {mesa.docentes?.[1]?.confirmacion && (
+                              <span className="ms-2 badge bg-success">
+                                {mesa.docentes[1].confirmacion}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-warning btn-sm"
+                              onClick={() => handleCancelMesa(mesa.id)}
+                            >
+                              Cancelar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {showForm && (
+            <div className="card mt-4">
+              <div className="card-body">
+                <h5 className="card-title">
+                  {editMesa ? "Editar Mesa" : "Nueva Mesa"}
+                </h5>
+                {error && <div className="alert alert-danger">{error}</div>}
+                <form onSubmit={handleSubmit}>
+                  <div className="row">
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Materia/Cátedra</label>
+                      <input
+                        name="materia"
+                        className="form-control"
+                        value={form.materia || ""}
+                        onChange={handleInput}
+                        required
+                      />
+                    </div>
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Fecha</label>
+                      <input
+                        name="fecha"
+                        type="date"
+                        className="form-control"
+                        value={form.fecha || ""}
+                        onChange={handleInput}
+                        required
+                      />
+                    </div>
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Hora</label>
+                      <input
+                        name="hora"
+                        type="time"
+                        className="form-control"
+                        value={form.hora || ""}
+                        onChange={handleInput}
+                        required
+                      />
+                    </div>
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Aula</label>
+                      <input
+                        name="aula"
+                        className="form-control"
+                        value={form.aula || ""}
+                        onChange={handleInput}
+                        required
+                      />
+                    </div>
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Docente Titular</label>
+                      <select
+                        name="docente_titular"
+                        className="form-select"
+                        value={form.docente_titular || ""}
+                        onChange={handleInput}
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        {docentes
+                          .filter((d) => d.id !== form.docente_vocal)
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nombre}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="col-12 col-md-6 mb-3">
+                      <label className="form-label">Docente Vocal</label>
+                      <select
+                        name="docente_vocal"
+                        className="form-select"
+                        value={form.docente_vocal || ""}
+                        onChange={handleInput}
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        {docentes
+                          .filter((d) => d.id !== form.docente_titular)
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nombre}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="d-flex flex-column flex-sm-row gap-2 mt-3">
+                    <button className="btn btn-primary" type="submit">
+                      Guardar
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => {
+                        setShowForm(false);
+                        setEditMesa(null);
+                        setForm({});
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
