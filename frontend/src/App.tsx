@@ -7,7 +7,8 @@ import {
   useLocation,
 } from "react-router-dom";
 import Login from "./components/Login";
-import "bootstrap/dist/css/bootstrap.min.css";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import DepartamentoDashboard from "./components/DepartamentoDashboard";
 import DocenteDashboard from "./components/DocenteDashboard";
 import { Helmet } from "react-helmet";
@@ -68,10 +69,11 @@ const App: React.FC = () => {
       <RouteStorageManager>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/departamento" element={<DepartamentoDashboard />} />
           <Route path="/docente" element={<DocenteDashboard />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
-          {/* Aquí agregaremos más rutas cuando las creemos */}
         </Routes>
       </RouteStorageManager>
     </Router>

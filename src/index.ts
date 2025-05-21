@@ -8,6 +8,7 @@ import cors from "cors";
 import mesaRoutes from "./routes/mesaRoutes";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
 import { supabase } from "./config/supabase";
+import { AuthController } from "./controllers/AuthController";
 
 const app = express();
 const httpServer = createServer(app);
@@ -19,7 +20,12 @@ const io = new Server(httpServer, {
 });
 
 // Configuración de middleware
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:5173", "http://172.17.3.14:3000"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+}));
 app.use(express.json());
 
 // Configuración de WebSocket
@@ -28,6 +34,10 @@ wsStrategy.setSocketIO(io);
 
 // Rutas
 app.use("/api", mesaRoutes);
+
+// Rutas de autenticación
+app.post("/api/reset-password", AuthController.requestPasswordReset);
+app.post("/api/update-password", AuthController.updatePassword);
 
 app.post("/api/login", async (req, res) => {
   const { email, password, role } = req.body;

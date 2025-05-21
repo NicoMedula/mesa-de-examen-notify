@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { UserRole } from "../types/user";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const FIXED_PASSWORD = "12345"; // Contraseña preestablecida
 
@@ -193,8 +193,12 @@ const Login: React.FC = () => {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
                   />
+                  <div className="mt-1 text-end">
+                    <Link to="/forgot-password" className="text-decoration-none small">
+                      ¿Olvidó su contraseña?
+                    </Link>
+                  </div>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Rol</label>
