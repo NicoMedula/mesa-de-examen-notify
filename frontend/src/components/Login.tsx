@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { UserRole } from "../types/user";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate, Link } from "react-router-dom";
@@ -9,9 +9,11 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("docente");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // Constante para el email del departamento
+  const DEPARTAMENTO_EMAIL = "departamento@ejemplo.com";
 
   // No necesitamos cargar la lista de docentes por adelantado
   // La autenticación se hará al momento de enviar el formulario
@@ -135,7 +137,7 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      // Validar campos comunes a ambos roles
+      // Validar campos
       if (!email.trim()) {
         setError("Por favor, ingrese su correo electrónico");
         return;
@@ -146,11 +148,15 @@ const Login: React.FC = () => {
         return;
       }
 
-      // Dependiendo del rol, usar la función de autenticación correspondiente
-      if (role === ("docente" as UserRole)) {
-        await handleDocenteLogin(email, password);
-      } else if (role === ("departamento" as UserRole)) {
+      // Determinar el rol automáticamente basado en el correo electrónico
+      const emailNormalizado = email.toLowerCase().trim();
+      
+      if (emailNormalizado === DEPARTAMENTO_EMAIL.toLowerCase()) {
+        // Es el departamento
         await handleDepartamentoLogin(email, password);
+      } else {
+        // Cualquier otro correo se considera como docente
+        await handleDocenteLogin(email, password);
       }
     } catch (error: any) {
       setError(error.message || "Error al iniciar sesión");
@@ -200,24 +206,11 @@ const Login: React.FC = () => {
                     </Link>
                   </div>
                 </div>
-                <div className="mb-3">
-                  <label className="form-label">Rol</label>
-                  <select
-                    className="form-select"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                  >
-                    <option value="docente">Docente</option>
-                    <option value="departamento">Departamento</option>
-                  </select>
-                </div>
-
-                {/* Campo de ayuda para indicar el correo dependiendo del rol */}
+                {/* Mensaje informativo */}
                 <div className="mb-3">
                   <small className="form-text text-muted">
-                    {role === "docente"
-                      ? "Use su correo electrónico institucional"
-                      : "Para departamento: departamento@ejemplo.com"}
+                    Para departamento use: departamento@ejemplo.com<br/>
+                    Para docentes use su correo electrónico institucional
                   </small>
                 </div>
 
