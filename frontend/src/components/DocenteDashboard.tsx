@@ -22,6 +22,8 @@ const DocenteDashboard: React.FC = () => {
   const [docenteNombre, setDocenteNombre] = useState<string>("");
   const [docenteId, setDocenteId] = useState<string>("");
 
+  const API_URL = process.env.REACT_APP_API_URL;
+
   useEffect(() => {
     // Obtener el ID del docente desde sessionStorage (prioridad) o localStorage
     const storedDocenteId =
@@ -59,7 +61,7 @@ const DocenteDashboard: React.FC = () => {
     // Obtener información detallada del docente desde la API
     const fetchDocenteInfo = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/docentes`);
+        const response = await fetch(`${API_URL}/api/docentes`);
         if (response.ok) {
           const docentes = await response.json();
 
@@ -124,7 +126,7 @@ const DocenteDashboard: React.FC = () => {
       // Agregamos un timestamp para evitar el caché
       const timestamp = new Date().getTime();
       const res = await fetch(
-        `http://localhost:3001/api/docente/${docenteIdActual}/mesas?t=${timestamp}`
+        `${API_URL}/api/docente/${docenteIdActual}/mesas?t=${timestamp}`
       );
       if (!res.ok) {
         console.error("Error al refrescar las mesas:", res.status);
@@ -243,7 +245,7 @@ const DocenteDashboard: React.FC = () => {
 
       try {
         const res = await fetch(
-          `http://localhost:3001/api/mesa/${mesaId}/docente/${docenteId}/confirmar`,
+          `${API_URL}/api/mesa/${mesaId}/docente/${docenteId}/confirmar`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

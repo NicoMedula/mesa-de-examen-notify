@@ -18,6 +18,8 @@ const Login: React.FC = () => {
   // No necesitamos cargar la lista de docentes por adelantado
   // La autenticación se hará al momento de enviar el formulario
 
+  const API_URL = process.env.REACT_APP_API_URL;
+
   // Función para verificar credenciales y login con docente
   const handleDocenteLogin = async (email: string, password: string) => {
     try {
@@ -31,7 +33,7 @@ const Login: React.FC = () => {
       }
 
       // Buscar docente por email en la API
-      const response = await fetch(`http://localhost:3001/api/docentes`);
+      const response = await fetch(`${API_URL}/api/docentes`);
       if (!response.ok) {
         throw new Error("Error al verificar credenciales");
       }

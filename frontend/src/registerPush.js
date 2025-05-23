@@ -6,22 +6,28 @@ export async function registerPush() {
       if (permission !== 'granted') {
         throw new Error('Permiso de notificaciones denegado');
       }
+      // Obtener el docenteId del almacenamiento
+      const docenteId = sessionStorage.getItem('docenteId') || localStorage.getItem('docenteId');
+      if (!docenteId) {
+        throw new Error('No se encontró el ID del docente para registrar la suscripción push');
+      }
       // Aquí deberías obtener la VAPID public key desde tu backend
-      const response = await fetch('http://localhost:3001/api/push/public-key');
+      const API_URL = process.env.REACT_APP_API_URL;
+      const response = await fetch(`${API_URL}/api/push/public-key`);
       const { publicKey } = await response.json();
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
       console.log('Suscripción generada:', subscription);
-      // Enviar la suscripción al backend
-      const res = await fetch('http://localhost:3001/api/push/subscribe', {
+      // Enviar la suscripción y el docenteId al backend
+      const res = await fetch(`${API_URL}/api/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription)
+        body: JSON.stringify({ docenteId, subscription })
       });
       if (res.ok) {
-        console.log('Suscripción enviada al backend:', subscription);
+        console.log('Suscripción enviada al backend:', { docenteId, subscription });
       } else {
         console.error('Error al enviar la suscripción al backend:', await res.text());
       }

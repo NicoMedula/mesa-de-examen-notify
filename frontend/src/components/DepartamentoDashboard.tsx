@@ -67,7 +67,8 @@ const DepartamentoDashboard: React.FC = () => {
   useEffect(() => {
     const fetchMesas = async () => {
       try {
-        const res = await fetch("http://localhost:3001/api/mesas");
+        const API_URL = process.env.REACT_APP_API_URL;
+        const res = await fetch(`${API_URL}/api/mesas`);
         if (!res.ok) {
           console.error("Error fetching mesas:", res.status);
           return;
@@ -100,7 +101,8 @@ const DepartamentoDashboard: React.FC = () => {
 
     const fetchDocentes = async () => {
       try {
-        const res = await fetch("http://localhost:3001/api/docentes");
+        const API_URL = process.env.REACT_APP_API_URL;
+        const res = await fetch(`${API_URL}/api/docentes`);
         if (!res.ok) {
           console.error("Error fetching docentes:", res.status);
           return;
@@ -208,9 +210,10 @@ const DepartamentoDashboard: React.FC = () => {
     };
 
     try {
+      const API_URL = process.env.REACT_APP_API_URL;
       const url = editMesa
-        ? `http://localhost:3001/api/mesas/${editMesa.id}`
-        : "http://localhost:3001/api/mesas";
+        ? `${API_URL}/api/mesas/${editMesa.id}`
+        : `${API_URL}/api/mesas`;
       const method = editMesa ? "PUT" : "POST";
 
       console.log(`${method} request to ${url} with data:`, mesaData);
@@ -234,7 +237,7 @@ const DepartamentoDashboard: React.FC = () => {
 
       // Refrescar la lista de mesas con manejo de errores
       try {
-        const mesasRes = await fetch("http://localhost:3001/api/mesas");
+        const mesasRes = await fetch(`${API_URL}/api/mesas`);
         if (!mesasRes.ok) {
           console.error("Error al refrescar las mesas:", mesasRes.status);
           return;
@@ -277,7 +280,7 @@ const DepartamentoDashboard: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Eliminar esta mesa?")) return;
-    await fetch(`http://localhost:3001/api/mesas/${id}`, {
+    await fetch(`${process.env.REACT_APP_API_URL}/api/mesas/${id}`, {
       method: "DELETE",
     });
     setMesas(mesas.filter((m) => m.id !== id));
@@ -286,7 +289,8 @@ const DepartamentoDashboard: React.FC = () => {
   // Función para refrescar las listas de mesas
   const refreshMesas = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/mesas");
+      const API_URL = process.env.REACT_APP_API_URL;
+      const res = await fetch(`${API_URL}/api/mesas`);
       if (!res.ok) {
         console.error("Error al refrescar las mesas:", res.status);
         return;
@@ -307,7 +311,8 @@ const DepartamentoDashboard: React.FC = () => {
     try {
       console.log("Confirming mesa with ID:", mesaId);
 
-      const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
+      const API_URL = process.env.REACT_APP_API_URL;
+      const res = await fetch(`${API_URL}/api/mesas/${mesaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: "confirmada" }),
@@ -344,6 +349,7 @@ const DepartamentoDashboard: React.FC = () => {
       console.log("Canceling mesa with ID:", mesaId);
 
       // Primero obtenemos la mesa para resets los estados de confirmación de los docentes a pendiente
+      const API_URL = process.env.REACT_APP_API_URL;
       const mesaCancelada = mesasConfirmadas.find((m) => m.id === mesaId);
 
       if (!mesaCancelada) {
@@ -362,7 +368,7 @@ const DepartamentoDashboard: React.FC = () => {
       }));
 
       // Enviamos la actualización con el cambio de estado y los docentes reiniciados
-      const res = await fetch(`http://localhost:3001/api/mesas/${mesaId}`, {
+      const res = await fetch(`${API_URL}/api/mesas/${mesaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

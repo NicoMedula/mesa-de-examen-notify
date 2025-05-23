@@ -47,7 +47,8 @@ export class ConsoleNotificacionStrategy implements NotificacionStrategy {
 
 export class PushNotificacionStrategy implements NotificacionStrategy {
   private static instance: PushNotificacionStrategy;
-  private subscriptions: any[] = [];
+  // Cambiamos a un diccionario por docenteId
+  private subscriptions: { [docenteId: string]: any } = {};
 
   private constructor() {}
 
@@ -58,24 +59,32 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
     return PushNotificacionStrategy.instance;
   }
 
-  public addSubscription(subscription: any) {
-    this.subscriptions.push(subscription);
+  // Recibe { docenteId, subscription }
+  public addSubscription({ docenteId, subscription }: { docenteId: string, subscription: any }) {
+    if (!docenteId || !subscription) return;
+    // Evitar duplicados: solo una suscripción por docenteId
+    this.subscriptions[docenteId] = subscription;
   }
 
-  public async enviar(notificacion: Notificacion): Promise<void> {
-    console.log('Enviando notificación push a', this.subscriptions.length, 'suscriptores');
-    for (const sub of this.subscriptions) {
+  // Enviar solo a los docentes indicados
+  public async enviar(notificacion: Notificacion & { destinatarios?: string[] }) {
+    const destinatarios = notificacion.destinatarios || Object.keys(this.subscriptions);
+    console.log('Enviando notificación push a', destinatarios.length, 'docentes');
+    for (const docenteId of destinatarios) {
+      const sub = this.subscriptions[docenteId];
+      if (!sub) continue;
       try {
         await webpush.sendNotification(
           sub,
           JSON.stringify({
             title: 'Notificación de Mesa',
             body: notificacion.mensaje,
-            url: '/' // Puedes personalizar la URL
+            docenteId,
+            url: '/'
           })
         );
       } catch (err) {
-        console.error('Error enviando push:', err);
+        console.error('Error enviando push a', docenteId, err);
       }
     }
   }

@@ -77,7 +77,11 @@ export class MesaService {
 
   public async createMesa(mesa: Mesa): Promise<Mesa> {
     // Notificar a los docentes asignados
-    const notificacion = NotificacionFactory.crearNotificacionActualizacion(mesa, 'Se te ha asignado una nueva mesa');
+    const destinatarios = mesa.docentes.map(d => d.id);
+    const notificacion = {
+      ...NotificacionFactory.crearNotificacionActualizacion(mesa, 'Se te ha asignado una nueva mesa'),
+      destinatarios
+    };
     await PushNotificacionStrategy.getInstance().enviar(notificacion);
     // ... lógica original ...
     return this.mesaRepository.createMesa(mesa);
@@ -88,7 +92,7 @@ export class MesaService {
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
     const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
-    // Notificación push para confirmación o cancelación
+    // Notificación push para confirmación o cancelación SOLO a docentes asignados
     let mensaje = '';
     if (mesaActualizada.estado === 'confirmada') {
       mensaje = 'La mesa ha sido confirmada por el departamento.';
@@ -96,7 +100,11 @@ export class MesaService {
       mensaje = 'La mesa ha sido cancelada y vuelve a estado pendiente.';
     }
     if (mensaje) {
-      const notificacion = NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje);
+      const destinatarios = mesa.docentes.map(d => d.id);
+      const notificacion = {
+        ...NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje),
+        destinatarios
+      };
       await PushNotificacionStrategy.getInstance().enviar(notificacion);
     }
     return mesa;

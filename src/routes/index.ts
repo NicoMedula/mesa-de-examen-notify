@@ -17,9 +17,9 @@ router.get('/push/public-key', (req: Request, res: Response) => {
 });
 
 router.post('/push/subscribe', (req: Request, res: Response) => {
-  const subscription = req.body;
-  console.log('Suscripción recibida:', JSON.stringify(subscription, null, 2));
-  PushNotificacionStrategy.getInstance().addSubscription(subscription);
+  const { docenteId, subscription } = req.body;
+  console.log('Suscripción recibida:', JSON.stringify({ docenteId, subscription }, null, 2));
+  PushNotificacionStrategy.getInstance().addSubscription({ docenteId, subscription });
   res.status(201).json({ message: 'Suscripción registrada' });
 });
 
