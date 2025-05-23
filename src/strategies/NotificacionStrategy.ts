@@ -47,8 +47,8 @@ export class ConsoleNotificacionStrategy implements NotificacionStrategy {
 
 export class PushNotificacionStrategy implements NotificacionStrategy {
   private static instance: PushNotificacionStrategy;
-  // Cambiamos a un diccionario por docenteId
-  private subscriptions: { [docenteId: string]: any } = {};
+  // Ahora es un diccionario de arrays de suscripciones por docenteId
+  private subscriptions: { [docenteId: string]: any[] } = {};
 
   private constructor() {}
 
@@ -62,30 +62,39 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
   // Recibe { docenteId, subscription }
   public addSubscription({ docenteId, subscription }: { docenteId: string, subscription: any }) {
     if (!docenteId || !subscription) return;
-    // Evitar duplicados: solo una suscripción por docenteId
-    this.subscriptions[docenteId] = subscription;
+    if (!this.subscriptions[docenteId]) {
+      this.subscriptions[docenteId] = [];
+    }
+    // Evitar duplicados (por endpoint)
+    const exists = this.subscriptions[docenteId].some((sub) => sub.endpoint === subscription.endpoint);
+    if (!exists) {
+      this.subscriptions[docenteId].push(subscription);
+    }
   }
 
-  // Enviar solo a los docentes indicados
+  // Enviar solo a los docentes indicados, a todos sus dispositivos
   public async enviar(notificacion: Notificacion & { destinatarios?: string[] }) {
     const destinatarios = notificacion.destinatarios || Object.keys(this.subscriptions);
-    console.log('Enviando notificación push a', destinatarios.length, 'docentes');
+    let total = 0;
     for (const docenteId of destinatarios) {
-      const sub = this.subscriptions[docenteId];
-      if (!sub) continue;
-      try {
-        await webpush.sendNotification(
-          sub,
-          JSON.stringify({
-            title: 'Notificación de Mesa',
-            body: notificacion.mensaje,
-            docenteId,
-            url: '/'
-          })
-        );
-      } catch (err) {
-        console.error('Error enviando push a', docenteId, err);
+      const subs = this.subscriptions[docenteId] || [];
+      for (const sub of subs) {
+        try {
+          await webpush.sendNotification(
+            sub,
+            JSON.stringify({
+              title: 'Notificación de Mesa',
+              body: notificacion.mensaje,
+              docenteId,
+              url: '/'
+            })
+          );
+          total++;
+        } catch (err) {
+          console.error('Error enviando push a', docenteId, err);
+        }
       }
     }
+    console.log('Enviadas', total, 'notificaciones push a docentes.');
   }
 }
