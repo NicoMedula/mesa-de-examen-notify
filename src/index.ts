@@ -21,7 +21,7 @@ const io = new Server(httpServer, {
 
 // Configuración de middleware
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5173", "http://172.17.3.14:3000"],
+  origin: "*",
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept"]
