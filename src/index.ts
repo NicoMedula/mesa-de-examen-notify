@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import express from "express";
+import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
@@ -9,6 +9,7 @@ import mesaRoutes from "./routes/mesaRoutes";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
 import { supabase } from "./config/supabase";
 import { AuthController } from "./controllers/AuthController";
+import pushRoutes from './routes/index';
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,12 +35,12 @@ wsStrategy.setSocketIO(io);
 
 // Rutas
 app.use("/api", mesaRoutes);
+app.use("/api", pushRoutes);
 
-// Rutas de autenticación
+// Rutas de autenticación y login (deben ir después de los routers)
 app.post("/api/reset-password", AuthController.requestPasswordReset);
 app.post("/api/update-password", AuthController.updatePassword);
-
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", async (req: Request, res: Response) => {
   const { email, password, role } = req.body;
 
   // Autenticación con Supabase Auth
@@ -49,7 +50,8 @@ app.post("/api/login", async (req, res) => {
   });
 
   if (error || !data.user) {
-    return res.status(401).json({ error: "Credenciales inválidas" });
+    res.status(401).json({ error: "Credenciales inválidas" });
+    return;
   }
 
   // Verificar el rol en la tabla profiles
@@ -60,17 +62,17 @@ app.post("/api/login", async (req, res) => {
     .single();
 
   if (profileError || !profile) {
-    return res.status(401).json({ error: "Perfil no encontrado" });
+    res.status(401).json({ error: "Perfil no encontrado" });
+    return;
   }
 
   if (profile.role !== role) {
-    return res
-      .status(401)
-      .json({ error: "El rol seleccionado no coincide con el usuario" });
+    res.status(401).json({ error: "El rol seleccionado no coincide con el usuario" });
+    return;
   }
 
   // Si todo está bien, puedes devolver el usuario, token, etc.
-  return res.json({ user: data.user, role: profile.role });
+  res.json({ user: data.user, role: profile.role });
 });
 
 // Manejo de errores

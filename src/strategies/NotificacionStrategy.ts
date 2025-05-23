@@ -1,4 +1,5 @@
 import { Notificacion } from "../factories/NotificacionFactory";
+import webpush from 'web-push';
 
 // Patrón Strategy: Permite cambiar la forma de enviar notificaciones
 export interface NotificacionStrategy {
@@ -41,5 +42,41 @@ export class WebSocketNotificacionStrategy implements NotificacionStrategy {
 export class ConsoleNotificacionStrategy implements NotificacionStrategy {
   public async enviar(notificacion: Notificacion): Promise<void> {
     console.log(`[${notificacion.tipo.toUpperCase()}] ${notificacion.mensaje}`);
+  }
+}
+
+export class PushNotificacionStrategy implements NotificacionStrategy {
+  private static instance: PushNotificacionStrategy;
+  private subscriptions: any[] = [];
+
+  private constructor() {}
+
+  public static getInstance(): PushNotificacionStrategy {
+    if (!PushNotificacionStrategy.instance) {
+      PushNotificacionStrategy.instance = new PushNotificacionStrategy();
+    }
+    return PushNotificacionStrategy.instance;
+  }
+
+  public addSubscription(subscription: any) {
+    this.subscriptions.push(subscription);
+  }
+
+  public async enviar(notificacion: Notificacion): Promise<void> {
+    console.log('Enviando notificación push a', this.subscriptions.length, 'suscriptores');
+    for (const sub of this.subscriptions) {
+      try {
+        await webpush.sendNotification(
+          sub,
+          JSON.stringify({
+            title: 'Notificación de Mesa',
+            body: notificacion.mensaje,
+            url: '/' // Puedes personalizar la URL
+          })
+        );
+      } catch (err) {
+        console.error('Error enviando push:', err);
+      }
+    }
   }
 }

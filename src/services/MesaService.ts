@@ -5,6 +5,7 @@ import { NotificacionFactory } from "../factories/NotificacionFactory";
 import {
   NotificacionStrategy,
   WebSocketNotificacionStrategy,
+  PushNotificacionStrategy,
 } from "../strategies/NotificacionStrategy";
 
 // Patrón Singleton: Única instancia de MesaService
@@ -75,7 +76,10 @@ export class MesaService {
   }
 
   public async createMesa(mesa: Mesa): Promise<Mesa> {
-    // Aquí podrías agregar lógica de notificación si es necesario
+    // Notificar a los docentes asignados
+    const notificacion = NotificacionFactory.crearNotificacionActualizacion(mesa, 'Se te ha asignado una nueva mesa');
+    await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    // ... lógica original ...
     return this.mesaRepository.createMesa(mesa);
   }
 
@@ -83,8 +87,19 @@ export class MesaService {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
-    // Aquí podrías agregar lógica de notificación si es necesario
-    return this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+    const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+    // Notificación push para confirmación o cancelación
+    let mensaje = '';
+    if (mesaActualizada.estado === 'confirmada') {
+      mensaje = 'La mesa ha sido confirmada por el departamento.';
+    } else if (mesaActualizada.estado === 'pendiente') {
+      mensaje = 'La mesa ha sido cancelada y vuelve a estado pendiente.';
+    }
+    if (mensaje) {
+      const notificacion = NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje);
+      await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    }
+    return mesa;
   }
 
   public async deleteMesa(mesaId: string): Promise<void> {
