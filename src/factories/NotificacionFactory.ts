@@ -21,7 +21,7 @@ export class NotificacionFactory {
 
   public static crearNotificacionRecordatorio(mesa: Mesa): Notificacion {
     return {
-      mensaje: `Recordatorio: Mesa de examen el ${mesa.fecha} a las ${mesa.hora} en ${mesa.ubicacion}`,
+      mensaje: `Recordatorio: Mesa de examen el ${mesa.fecha} a las ${mesa.hora} en ${mesa.aula}`,
       tipo: "recordatorio",
       timestamp: new Date(),
     };

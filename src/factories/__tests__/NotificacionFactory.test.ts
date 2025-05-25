@@ -6,7 +6,9 @@ describe("NotificacionFactory", () => {
     id: "M1",
     fecha: "2025-06-15",
     hora: "10:00",
-    ubicacion: "Aula 301",
+    aula: "Aula 301",
+    materia: "Matemáticas",
+    estado: "pendiente",
     docentes: [],
   };
   const docente: Docente = {

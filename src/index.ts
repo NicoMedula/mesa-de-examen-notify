@@ -1,11 +1,15 @@
-import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
+
+import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import mesaRoutes from "./routes/mesaRoutes";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
-import dotenv from "dotenv";
-dotenv.config();
+import { supabase } from "./config/supabase";
+import { AuthController } from "./controllers/AuthController";
+import pushRoutes from './routes/index';
 
 const app = express();
 const httpServer = createServer(app);
@@ -17,7 +21,12 @@ const io = new Server(httpServer, {
 });
 
 // Configuración de middleware
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+}));
 app.use(express.json());
 
 // Configuración de WebSocket
@@ -26,6 +35,45 @@ wsStrategy.setSocketIO(io);
 
 // Rutas
 app.use("/api", mesaRoutes);
+app.use("/api", pushRoutes);
+
+// Rutas de autenticación y login (deben ir después de los routers)
+app.post("/api/reset-password", AuthController.requestPasswordReset);
+app.post("/api/update-password", AuthController.updatePassword);
+app.post("/api/login", async (req: Request, res: Response) => {
+  const { email, password, role } = req.body;
+
+  // Autenticación con Supabase Auth
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error || !data.user) {
+    res.status(401).json({ error: "Credenciales inválidas" });
+    return;
+  }
+
+  // Verificar el rol en la tabla profiles
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    res.status(401).json({ error: "Perfil no encontrado" });
+    return;
+  }
+
+  if (profile.role !== role) {
+    res.status(401).json({ error: "El rol seleccionado no coincide con el usuario" });
+    return;
+  }
+
+  // Si todo está bien, puedes devolver el usuario, token, etc.
+  res.json({ user: data.user, role: profile.role });
+});
 
 // Manejo de errores
 app.use(
@@ -39,8 +87,8 @@ app.use(
   }
 );
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3001;
 
 httpServer.listen(PORT, () => {
-  // Servidor iniciado
+  console.log(`Backend corriendo en http://localhost:${PORT}`);
 });

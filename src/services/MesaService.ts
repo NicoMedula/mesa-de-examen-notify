@@ -5,6 +5,7 @@ import { NotificacionFactory } from "../factories/NotificacionFactory";
 import {
   NotificacionStrategy,
   WebSocketNotificacionStrategy,
+  PushNotificacionStrategy,
 } from "../strategies/NotificacionStrategy";
 
 // Patrón Singleton: Única instancia de MesaService
@@ -43,7 +44,7 @@ export class MesaService {
   public async confirmarMesa(
     mesaId: string,
     docenteId: string,
-    confirmacion: "aceptado" | "rechazado"
+    confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
     const mesa = await this.mesaRepository.updateConfirmacion(
       mesaId,
@@ -64,7 +65,7 @@ export class MesaService {
   }
 
   public async enviarRecordatorio(mesaId: string): Promise<void> {
-    const mesas = this.mesaRepository.getAllMesas();
+    const mesas = await this.mesaRepository.getAllMesas();
     const mesa = mesas.find((m) => m.id === mesaId);
 
     if (mesa) {
@@ -72,5 +73,48 @@ export class MesaService {
         NotificacionFactory.crearNotificacionRecordatorio(mesa);
       await this.notificacionStrategy.enviar(notificacion);
     }
+  }
+
+  public async createMesa(mesa: Mesa): Promise<Mesa> {
+    // Notificar a los docentes asignados
+    const destinatarios = mesa.docentes.map(d => d.id);
+    const notificacion = {
+      ...NotificacionFactory.crearNotificacionActualizacion(mesa, 'Se te ha asignado una nueva mesa'),
+      destinatarios
+    };
+    await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    // ... lógica original ...
+    return this.mesaRepository.createMesa(mesa);
+  }
+
+  public async updateMesa(
+    mesaId: string,
+    mesaActualizada: Partial<Mesa>
+  ): Promise<Mesa> {
+    const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+    // Notificación push para confirmación o cancelación SOLO a docentes asignados
+    let mensaje = '';
+    if (mesaActualizada.estado === 'confirmada') {
+      mensaje = 'La mesa ha sido confirmada por el departamento.';
+    } else if (mesaActualizada.estado === 'pendiente') {
+      mensaje = 'La mesa ha sido cancelada y vuelve a estado pendiente.';
+    }
+    if (mensaje) {
+      const destinatarios = mesa.docentes.map(d => d.id);
+      const notificacion = {
+        ...NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje),
+        destinatarios
+      };
+      await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    }
+    return mesa;
+  }
+
+  public async deleteMesa(mesaId: string): Promise<void> {
+    return this.mesaRepository.deleteMesa(mesaId);
+  }
+
+  public async getAllMesas(): Promise<Mesa[]> {
+    return this.mesaRepository.getAllMesas();
   }
 }

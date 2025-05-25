@@ -2,27 +2,27 @@
   "mesas": [
     {
       "id": "M1",
-      "fecha": "2025-06-15",
+      "fecha": "2024-06-15",
       "hora": "10:00",
       "ubicacion": "Aula 301",
       "docentes": [
         {
           "id": "123",
           "nombre": "Prof. Gómez",
-          "confirmacion": "rechazado"
+          "confirmacion": "aceptado"
         },
         {
           "id": "456",
-          "nombre": "Prof. Luna",
+          "nombre": "Prof. Martínez",
           "confirmacion": "aceptado"
         }
       ]
     },
     {
       "id": "M2",
-      "fecha": "2025-06-16",
+      "fecha": "2024-06-16",
       "hora": "14:00",
-      "ubicacion": "Aula 205",
+      "ubicacion": "Aula 302",
       "docentes": [
         {
           "id": "123",
@@ -32,9 +32,9 @@
         {
           "id": "789",
           "nombre": "Prof. Rodríguez",
-          "confirmacion": "aceptado"
+          "confirmacion": "pendiente"
         }
       ]
     }
   ]
-}
+}}
