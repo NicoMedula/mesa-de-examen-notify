@@ -20,12 +20,39 @@ export class MesaController {
 
   public async getMesasByDocenteId(req: Request, res: Response): Promise<void> {
     try {
+      // Forzar cabeceras JSON
+      res.setHeader('Content-Type', 'application/json');
+      
       const { id } = req.params;
-      const mesas = await this.mesaService.getMesasByDocenteId(id);
-      res.json(mesas);
-    } catch (error) {
-      console.error("Error en getMesasByDocenteId:", error);
-      res.status(500).json({ error: "Error al obtener las mesas del docente" });
+      console.log(`Obteniendo mesas para el docente con ID: ${id}`);
+      
+      if (!id) {
+        console.error('ID de docente no proporcionado');
+        res.status(400).json({ error: "ID de docente requerido" });
+        return;
+      }
+      
+      try {
+        const mesas = await this.mesaService.getMesasByDocenteId(id);
+        console.log(`Encontradas ${mesas?.length || 0} mesas para el docente ${id}`);
+        
+        // Asegurar que siempre devolvemos un array, incluso vacío
+        res.status(200).json(mesas || []);
+      } catch (serviceError: any) {
+        console.error(`Error del servicio al obtener mesas para docente ${id}:`, serviceError);
+        res.status(500).json({ 
+          error: "Error al obtener las mesas del docente", 
+          detalle: serviceError?.message || 'Error en el servicio',
+          origen: 'servicio'
+        });
+      }
+    } catch (error: any) {
+      console.error("Error general en getMesasByDocenteId:", error);
+      res.status(500).json({ 
+        error: "Error al obtener las mesas del docente", 
+        detalle: error?.message || 'Error desconocido',
+        origen: 'controlador'
+      });
     }
   }
 

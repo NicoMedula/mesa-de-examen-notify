@@ -1,5 +1,5 @@
 import { Notificacion } from "../factories/NotificacionFactory";
-import webpush from 'web-push';
+import webpush from "web-push";
 
 // Patrón Strategy: Permite cambiar la forma de enviar notificaciones
 export interface NotificacionStrategy {
@@ -26,7 +26,7 @@ export class WebSocketNotificacionStrategy implements NotificacionStrategy {
     }
     return WebSocketNotificacionStrategy.instance;
   }
-//Permite inyectar la instancia real de Socket.IO desde afuera
+  //Permite inyectar la instancia real de Socket.IO desde afuera
   public setSocketIO(io: SocketIO | undefined): void {
     this.io = io;
   }
@@ -60,41 +60,59 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
   }
 
   // Recibe { docenteId, subscription }
-  public addSubscription({ docenteId, subscription }: { docenteId: string, subscription: any }) {
+  public addSubscription({
+    docenteId,
+    subscription,
+  }: {
+    docenteId: string;
+    subscription: any;
+  }) {
     if (!docenteId || !subscription) return;
     if (!this.subscriptions[docenteId]) {
       this.subscriptions[docenteId] = [];
     }
     // Evitar duplicados (por endpoint)
-    const exists = this.subscriptions[docenteId].some((sub) => sub.endpoint === subscription.endpoint);
+    const exists = this.subscriptions[docenteId].some(
+      (sub) => sub.endpoint === subscription.endpoint
+    );
     if (!exists) {
       this.subscriptions[docenteId].push(subscription);
     }
   }
 
   // Enviar solo a los docentes indicados, a todos sus dispositivos
-  public async enviar(notificacion: Notificacion & { destinatarios?: string[] }) {
-    const destinatarios = notificacion.destinatarios || Object.keys(this.subscriptions);
+  public async enviar(
+    notificacion: Notificacion & { destinatarios?: string[] }
+  ) {
+    const destinatarios =
+      notificacion.destinatarios || Object.keys(this.subscriptions);
     let total = 0;
     for (const docenteId of destinatarios) {
       const subs = this.subscriptions[docenteId] || [];
       for (const sub of subs) {
         try {
-          await webpush.sendNotification(
-            sub,
-            JSON.stringify({
-              title: 'Notificación de Mesa',
-              body: notificacion.mensaje,
-              docenteId,
-              url: '/'
-            })
-          );
+          // Buscar el nombre del docente en la notificación (si está en el mensaje)
+          let nombreDocente = "";
+          const match = notificacion.mensaje.match(/^(.*?),/);
+          if (match && match[1]) {
+            nombreDocente = match[1];
+          } else {
+            nombreDocente = "Docente";
+          }
+          const payload = {
+            title: `Notificación de Mesa para ${nombreDocente}`,
+            body: notificacion.mensaje,
+            docenteId,
+            url: "/",
+          };
+          console.log("Payload enviado a webpush:", payload);
+          await webpush.sendNotification(sub, JSON.stringify(payload));
           total++;
         } catch (err) {
-          console.error('Error enviando push a', docenteId, err);
+          console.error("Error enviando push a", docenteId, err);
         }
       }
     }
-    console.log('Enviadas', total, 'notificaciones push a docentes.');
+    console.log("Enviadas", total, "notificaciones push a docentes.");
   }
 }

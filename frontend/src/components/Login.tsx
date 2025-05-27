@@ -11,157 +11,107 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Constante para el email del departamento
   const DEPARTAMENTO_EMAIL = "departamento@ejemplo.com";
 
   // No necesitamos cargar la lista de docentes por adelantado
   // La autenticación se hará al momento de enviar el formulario
 
-  const API_URL = process.env.REACT_APP_API_URL;
-
-  // Función para verificar credenciales y login con docente
-  const handleDocenteLogin = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-
-      // Verificar que la contraseña sea correcta (es fija para todos)
-      if (password !== FIXED_PASSWORD) {
-        setError("Contraseña incorrecta");
-        setLoading(false);
-        return;
-      }
-
-      // Buscar docente por email en la API
-      const response = await fetch(`${API_URL}/api/docentes`);
-      if (!response.ok) {
-        throw new Error("Error al verificar credenciales");
-      }
-
-      const docentes = await response.json();
-      console.log("Docentes obtenidos:", docentes);
-
-      // Comprobación exacta del email
-      const docente = docentes.find(
-        (d: any) => d.email.toLowerCase().trim() === email.toLowerCase().trim()
-      );
-
-      // Log detallado para debugging
-      console.log("Email buscado:", email);
-      console.log("Docente encontrado:", docente);
-      console.log("ID del docente en la base de datos:", docente?.id);
-
-      if (!docente) {
-        setError("No se encontró un docente con ese correo electrónico");
-        setLoading(false);
-        return;
-      }
-
-      // Limpiar datos anteriores
-      sessionStorage.clear();
-      localStorage.removeItem("departamentoId");
-
-      // Establecer datos de sesión para este docente
-      const sessionId = `${docente.nombre
-        .toLowerCase()
-        .replace(/ /g, "_")}_${Date.now()}`;
-      sessionStorage.setItem("sessionId", sessionId);
-      sessionStorage.setItem("currentUser", docente.nombre);
-      sessionStorage.setItem("userRole", "docente");
-      sessionStorage.setItem("docenteId", docente.id);
-
-      // También almacenar en localStorage para compatibilidad
-      localStorage.setItem("docenteId", docente.id);
-      localStorage.setItem("userName", docente.nombre);
-
-      console.log(
-        `Iniciando sesión como ${docente.nombre} con ID ${docente.id}`
-      );
-      setLoading(false);
-      navigate("/docente");
-    } catch (error: any) {
-      console.error("Error en la autenticación:", error);
-      setError(error?.message || "Error al iniciar sesión");
-      setLoading(false);
-    }
-  };
-
-  const handleDepartamentoLogin = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-
-      // Validar contraseña para el departamento
-      if (password !== FIXED_PASSWORD) {
-        setError("Contraseña incorrecta");
-        setLoading(false);
-        return;
-      }
-
-      // Verificar que el correo sea el correcto para el departamento
-      if (email !== "departamento@ejemplo.com") {
-        setError("Correo electrónico de departamento incorrecto");
-        setLoading(false);
-        return;
-      }
-
-      // Limpiar datos anteriores
-      sessionStorage.clear();
-      localStorage.removeItem("docenteId");
-      localStorage.removeItem("userName");
-
-      // Establecer datos de sesión únicos para el departamento
-      const sessionId = `depto_${Date.now()}`;
-      sessionStorage.setItem("sessionId", sessionId);
-      sessionStorage.setItem("currentUser", "Departamento");
-      sessionStorage.setItem("userRole", "departamento");
-      sessionStorage.setItem(
-        "departamentoId",
-        "2c5ea4c0-4067-11ed-b878-0242ac120002"
-      );
-
-      // También almacenar en localStorage para compatibilidad
-      localStorage.setItem(
-        "departamentoId",
-        "2c5ea4c0-4067-11ed-b878-0242ac120002"
-      );
-
-      setLoading(false);
-      navigate("/departamento");
-    } catch (error: any) {
-      console.error("Error en la autenticación del departamento:", error);
-      setError(error?.message || "Error al iniciar sesión");
-      setLoading(false);
-    }
-  };
+  // Asegurarnos de que tenemos una URL de API válida
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+console.log('URL de API para login:', API_URL);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     try {
-      // Validar campos
       if (!email.trim()) {
         setError("Por favor, ingrese su correo electrónico");
         return;
       }
-
       if (!password.trim()) {
         setError("Por favor, ingrese su contraseña");
         return;
       }
-
-      // Determinar el rol automáticamente basado en el correo electrónico
-      const emailNormalizado = email.toLowerCase().trim();
+      setLoading(true);
+      console.log("Iniciando proceso de login...");
       
-      if (emailNormalizado === DEPARTAMENTO_EMAIL.toLowerCase()) {
-        // Es el departamento
-        await handleDepartamentoLogin(email, password);
-      } else {
-        // Cualquier otro correo se considera como docente
-        await handleDocenteLogin(email, password);
+      // Determinar el rol automáticamente basado en el correo electrónico
+      let role = "docente";
+      if (email.toLowerCase().trim() === "departamento@ejemplo.com") {
+        role = "departamento";
       }
+      
+      console.log(`Intentando login con email: ${email}, rol: ${role}`);
+      console.log(`URL completa: ${API_URL}/api/login`);
+      
+      // Primero verificamos que la API esté accesible
+      try {
+        const pingResponse = await fetch(`${API_URL}/api/push/status`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (pingResponse.ok) {
+          console.log("API está accesible, procediendo con el login");
+        } else {
+          console.warn("API no respondió correctamente al ping");
+        }
+      } catch (pingError) {
+        console.error("Error al verificar estado de API:", pingError);
+        // Continuamos con el login de todas formas
+      }
+      
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({ email, password, role }),
+        mode: "cors",
+      });
+      
+      // Para debugging
+      console.log(`Respuesta del servidor: ${response.status} ${response.statusText}`);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error("Error al parsear respuesta JSON:", e);
+        throw new Error("Error al procesar la respuesta del servidor");
+      }
+      
+      if (!response.ok) {
+        console.error("Error de login:", data);
+        throw new Error(data.error || "Error al iniciar sesión");
+      }
+      
+      console.log("Login exitoso:", data);
+      // Guardar datos de sesión
+      sessionStorage.clear();
+      localStorage.clear();
+      sessionStorage.setItem("sessionId", data.user.id);
+      sessionStorage.setItem("currentUser", data.user.email);
+      sessionStorage.setItem("userRole", role);
+      if (role === "docente") {
+        sessionStorage.setItem("docenteId", data.user.id);
+        localStorage.setItem("docenteId", data.user.id);
+        localStorage.setItem("userName", data.user.email);
+        navigate("/docente");
+      } else {
+        sessionStorage.setItem("departamentoId", data.user.id);
+        localStorage.setItem("departamentoId", data.user.id);
+        navigate("/departamento");
+      }
+      setLoading(false);
     } catch (error: any) {
       setError(error.message || "Error al iniciar sesión");
+      setLoading(false);
     }
   };
 
@@ -203,7 +153,10 @@ const Login: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <div className="mt-1 text-end">
-                    <Link to="/forgot-password" className="text-decoration-none small">
+                    <Link
+                      to="/forgot-password"
+                      className="text-decoration-none small"
+                    >
                       ¿Olvidó su contraseña?
                     </Link>
                   </div>
@@ -211,7 +164,8 @@ const Login: React.FC = () => {
                 {/* Mensaje informativo */}
                 <div className="mb-3">
                   <small className="form-text text-muted">
-                    Para departamento use: departamento@ejemplo.com<br/>
+                    Para departamento use: departamento@ejemplo.com
+                    <br />
                     Para docentes use su correo electrónico institucional
                   </small>
                 </div>

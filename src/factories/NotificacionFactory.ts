@@ -32,7 +32,7 @@ export class NotificacionFactory {
     cambios: string
   ): Notificacion {
     return {
-      mensaje: `Actualización en la mesa ${mesa.id}: ${cambios}`,
+      mensaje: `${cambios} Materia: ${mesa.materia}, Fecha: ${mesa.fecha}, Hora: ${mesa.hora}, Aula: ${mesa.aula}`,
       tipo: "actualizacion",
       timestamp: new Date(),
     };

@@ -77,12 +77,21 @@ export class MesaService {
 
   public async createMesa(mesa: Mesa): Promise<Mesa> {
     // Notificar a los docentes asignados
-    const destinatarios = mesa.docentes.map(d => d.id);
-    const notificacion = {
-      ...NotificacionFactory.crearNotificacionActualizacion(mesa, 'Se te ha asignado una nueva mesa'),
-      destinatarios
-    };
-    await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    for (const docente of mesa.docentes) {
+      const mensaje = `${docente.nombre}, el departamento te ha asignado una nueva mesa.`;
+      const notificacion = {
+        ...NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje),
+        destinatarios: [docente.id],
+      };
+      const payload = {
+        title: `Notificación de Mesa para ${docente.nombre}`,
+        body: notificacion.mensaje,
+        docenteId: docente.id,
+        url: "/",
+      };
+      console.log("Payload enviado a webpush (createMesa):", payload);
+      await PushNotificacionStrategy.getInstance().enviar(notificacion);
+    }
     // ... lógica original ...
     return this.mesaRepository.createMesa(mesa);
   }
@@ -93,19 +102,32 @@ export class MesaService {
   ): Promise<Mesa> {
     const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
     // Notificación push para confirmación o cancelación SOLO a docentes asignados
-    let mensaje = '';
-    if (mesaActualizada.estado === 'confirmada') {
-      mensaje = 'La mesa ha sido confirmada por el departamento.';
-    } else if (mesaActualizada.estado === 'pendiente') {
-      mensaje = 'La mesa ha sido cancelada y vuelve a estado pendiente.';
+    let mensaje = "";
+    if (mesaActualizada.estado === "confirmada") {
+      mensaje = "el departamento ha confirmado la mesa.";
+    } else if (mesaActualizada.estado === "pendiente") {
+      mensaje =
+        "el departamento ha cancelado la mesa (vuelve a estado pendiente).";
     }
     if (mensaje) {
-      const destinatarios = mesa.docentes.map(d => d.id);
-      const notificacion = {
-        ...NotificacionFactory.crearNotificacionActualizacion(mesa, mensaje),
-        destinatarios
-      };
-      await PushNotificacionStrategy.getInstance().enviar(notificacion);
+      for (const docente of mesa.docentes) {
+        const mensajePersonalizado = `${docente.nombre}, ${mensaje}`;
+        const notificacion = {
+          ...NotificacionFactory.crearNotificacionActualizacion(
+            mesa,
+            mensajePersonalizado
+          ),
+          destinatarios: [docente.id],
+        };
+        const payload = {
+          title: `Notificación de Mesa para ${docente.nombre}`,
+          body: notificacion.mensaje,
+          docenteId: docente.id,
+          url: "/",
+        };
+        console.log("Payload enviado a webpush (updateMesa):", payload);
+        await PushNotificacionStrategy.getInstance().enviar(notificacion);
+      }
     }
     return mesa;
   }
