@@ -3,36 +3,28 @@ import { Mesa } from "../types";
 // Interfaz para el cliente de base de datos
 export interface DatabaseClient {
   from: (table: string) => {
-    select: (columns?: string) => Promise<{
-      data: any[] | null;
-      error: any;
-      eq: (
-        column: string,
-        value: any
-      ) => Promise<{ data: any[] | null; error: any }>;
+    select: (columns?: string) => {
       or: (condition: string) => Promise<{ data: any[] | null; error: any }>;
-    }>;
-    insert: (data: any) => Promise<{
-      data: any[] | null;
-      error: any;
+      eq: (
+        column: string,
+        value: any
+      ) => Promise<{ data: any[] | null; error: any }>;
+    };
+    insert: (data: any) => {
       select: () => Promise<{ data: any[] | null; error: any }>;
-    }>;
-    update: (data: any) => Promise<{
-      data: any[] | null;
-      error: any;
+    };
+    update: (data: any) => {
       eq: (
         column: string,
         value: any
       ) => Promise<{ data: any[] | null; error: any }>;
-    }>;
-    delete: () => Promise<{
-      data: any[] | null;
-      error: any;
+    };
+    delete: () => {
       eq: (
         column: string,
         value: any
       ) => Promise<{ data: any[] | null; error: any }>;
-    }>;
+    };
   };
 }
 
@@ -166,9 +158,10 @@ export class MesaRepository {
         const docenteId = docente.id;
 
         // Buscar otras mesas donde este docente está asignado
-        const existingMesasResult = await (
-          await this.db.from("mesas").select("*")
-        ).or(`docente_titular.eq.${docenteId},docente_vocal.eq.${docenteId}`);
+        const existingMesasResult = await this.db
+          .from("mesas")
+          .select("*")
+          .or(`docente_titular.eq.${docenteId},docente_vocal.eq.${docenteId}`);
 
         if (existingMesasResult.error) {
           console.error(
@@ -208,9 +201,7 @@ export class MesaRepository {
       console.log("Mesa adaptada para BD:", mesaDB);
 
       // Insertar en la BD
-      const result = await (
-        await this.db.from("mesas").insert([mesaDB])
-      ).select();
+      const result = await this.db.from("mesas").insert([mesaDB]).select();
 
       if (result.error) {
         console.error("Error al insertar mesa en BD:", result.error);

@@ -8,6 +8,14 @@ describe("MesaRepository", () => {
   beforeEach(() => {
     // Obtener una instancia del repositorio con el mock
     repository = MesaRepository.getInstance(supabase);
+    supabase.from = jest.fn().mockReturnValue({
+      select: createSelectMock(),
+      update: createUpdateMock(),
+      delete: createDeleteMock(),
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    });
   });
 
   it("debería obtener todas las mesas", async () => {
@@ -1257,5 +1265,24 @@ describe("MesaRepository - Cobertura 100% líneas críticas (final)", () => {
     const repo = MesaRepository.getInstance(mockDb as any);
     await expect(repo.getMesaById("1")).rejects.toThrow("Error getMesaById");
   });
-
 });
+
+// Utilidad para crear un mock de query builder compatible con Supabase
+function createSelectMock({ data = [], error = null } = {}) {
+  return jest.fn().mockReturnValue({
+    or: jest.fn().mockResolvedValue({ data, error }),
+    eq: jest.fn().mockResolvedValue({ data, error }),
+  });
+}
+
+function createUpdateMock({ data = [], error = null } = {}) {
+  return jest.fn().mockReturnValue({
+    eq: jest.fn().mockResolvedValue({ data, error }),
+  });
+}
+
+function createDeleteMock({ data = [], error = null } = {}) {
+  return jest.fn().mockReturnValue({
+    eq: jest.fn().mockResolvedValue({ data, error }),
+  });
+}
