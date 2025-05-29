@@ -240,15 +240,14 @@ export class MesaRepository {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
-    const updateOp = await this.db
+    const updateResult = await this.db
       .from("mesas")
-      .update(this.adaptMesaToDB(mesaActualizada));
-    const updateResult = await updateOp.eq("id", mesaId);
+      .update(this.adaptMesaToDB(mesaActualizada))
+      .eq("id", mesaId);
 
     if (updateResult.error) throw new Error(updateResult.error.message);
 
-    const selectOp = await this.db.from("mesas").select("*");
-    const result = await selectOp.eq("id", mesaId);
+    const result = await this.db.from("mesas").select("*").eq("id", mesaId);
 
     if (!result.data || result.data.length === 0) {
       throw new Error("No se encontró la mesa actualizada");
@@ -258,8 +257,7 @@ export class MesaRepository {
   }
 
   public async deleteMesa(mesaId: string): Promise<void> {
-    const deleteOp = await this.db.from("mesas").delete();
-    const result = await deleteOp.eq("id", mesaId);
+    const result = await this.db.from("mesas").delete().eq("id", mesaId);
 
     if (result.error) throw new Error(result.error.message);
   }
@@ -279,15 +277,17 @@ export class MesaRepository {
       docente.id === docenteId ? { ...docente, confirmacion } : docente
     );
 
-    const updateOp = await this.db
+    const result = await this.db
       .from("mesas")
-      .update({ docentes: docentesActualizados });
-    const result = await updateOp.eq("id", mesaId);
+      .update({ docentes: docentesActualizados })
+      .eq("id", mesaId);
 
     if (result.error) throw new Error(result.error.message);
 
-    const selectOp = await this.db.from("mesas").select("*");
-    const updatedMesa = await selectOp.eq("id", mesaId);
+    const updatedMesa = await this.db
+      .from("mesas")
+      .select("*")
+      .eq("id", mesaId);
 
     if (!updatedMesa.data || updatedMesa.data.length === 0) {
       throw new Error("No se encontró la mesa actualizada");
@@ -297,15 +297,17 @@ export class MesaRepository {
   }
 
   async confirmarMesa(mesaId: string): Promise<Mesa> {
-    const updateOp = await this.db
+    const result = await this.db
       .from("mesas")
-      .update({ estado: "confirmada" });
-    const result = await updateOp.eq("id", mesaId);
+      .update({ estado: "confirmada" })
+      .eq("id", mesaId);
 
     if (result.error) throw new Error(result.error.message);
 
-    const selectOp = await this.db.from("mesas").select("*");
-    const updatedMesa = await selectOp.eq("id", mesaId);
+    const updatedMesa = await this.db
+      .from("mesas")
+      .select("*")
+      .eq("id", mesaId);
 
     if (!updatedMesa.data || updatedMesa.data.length === 0) {
       throw new Error("No se encontró la mesa actualizada");
@@ -315,8 +317,7 @@ export class MesaRepository {
   }
 
   public async getMesaById(mesaId: string): Promise<Mesa | null> {
-    const selectOp = await this.db.from("mesas").select("*");
-    const result = await selectOp.eq("id", mesaId);
+    const result = await this.db.from("mesas").select("*").eq("id", mesaId);
 
     if (result.error) throw new Error(result.error.message);
     if (!result.data || result.data.length === 0) return null;

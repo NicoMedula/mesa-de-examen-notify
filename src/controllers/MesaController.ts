@@ -194,6 +194,8 @@ export class MesaController {
           hora,
           aula: aula || "", // Asegurar que aula no sea null
           estado: "pendiente" as import("../types").EstadoMesa, // Usar el tipo correcto
+          docente_titular,
+          docente_vocal,
           docentes,
         };
 
@@ -315,6 +317,8 @@ export class MesaController {
         aula: aula !== undefined ? aula : mesaActual.aula,
         estado: estado || mesaActual.estado,
         docentes: nuevosDocentes,
+        docente_titular: docente_titular || mesaActual.docente_titular,
+        docente_vocal: docente_vocal || mesaActual.docente_vocal,
       });
       res.json(mesaActualizada);
     } catch (error) {
