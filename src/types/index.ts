@@ -16,8 +16,12 @@ export interface Mesa {
   fecha: string;
   hora: string;
   aula: string;
-  estado: EstadoMesa; // Campo ahora es obligatorio ya que se agregó a la tabla de la BD
+  estado: EstadoMesa;
+  docente_titular: string;
+  docente_vocal: string;
   docentes: Docente[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MesasData {

@@ -25,6 +25,15 @@ app.get(
   }
 );
 
+// Ruta sin restricción de roles
+app.get("/sin-roles", autenticarJWT(), (req: Request, res: Response) => {
+  res.json({
+    mensaje: "Acceso concedido sin verificar rol",
+    usuario: (req as unknown as { usuario: { rol: string; nombre: string } })
+      .usuario,
+  });
+});
+
 describe("Middleware autenticarJWT", () => {
   it("permite acceso con token válido y rol permitido", async () => {
     const token = jwt.sign({ rol: "docente", nombre: "Juan" }, SECRET);
@@ -34,6 +43,15 @@ describe("Middleware autenticarJWT", () => {
     expect(res.status).toBe(200);
     expect(res.body.mensaje).toBe("Acceso concedido");
     expect(res.body.usuario.rol).toBe("docente");
+  });
+
+  it("permite acceso con token válido cuando no se especifican roles", async () => {
+    const token = jwt.sign({ rol: "cualquier_rol", nombre: "Juan" }, SECRET);
+    const res = await request(app)
+      .get("/sin-roles")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.mensaje).toBe("Acceso concedido sin verificar rol");
   });
 
   it("deniega acceso con token válido pero rol NO permitido", async () => {

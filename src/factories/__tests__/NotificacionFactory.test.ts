@@ -9,7 +9,12 @@ describe("NotificacionFactory", () => {
     aula: "Aula 301",
     materia: "Matemáticas",
     estado: "pendiente",
-    docentes: [],
+    docente_titular: "123",
+    docente_vocal: "456",
+    docentes: [
+      { id: "123", nombre: "Prof. Gómez", confirmacion: "pendiente" },
+      { id: "456", nombre: "Prof. López", confirmacion: "pendiente" },
+    ],
   };
   const docente: Docente = {
     id: "123",

@@ -431,9 +431,7 @@ const DepartamentoDashboard: React.FC = () => {
           </button>
         </div>
         <div className="col-12">
-          <h2 className="mb-3 text-center text-md-start">
-            Gestión de Mesas de Examen
-          </h2>
+         
 
           <div className="d-grid d-md-block mb-3">
             <button
