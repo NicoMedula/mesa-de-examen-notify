@@ -144,6 +144,8 @@ const DocenteDashboard: React.FC = () => {
       sessionStorage.getItem("docenteId") ||
       localStorage.getItem("docenteId");
 
+    console.log("[refreshMesas] docenteIdActual:", docenteIdActual);
+
     if (!docenteIdActual || docenteIdActual === "ID") {
       console.error("ID de docente no válido para refrescar mesas");
       setError("No hay un ID de docente válido para refrescar mesas");
@@ -151,7 +153,9 @@ const DocenteDashboard: React.FC = () => {
     }
 
     try {
-      console.log(`Refrescando mesas para docente ${docenteIdActual}...`);
+      console.log(
+        `[refreshMesas] Fetching mesas para docente ${docenteIdActual}...`
+      );
       const timestamp = new Date().getTime();
       const url = `${API_URL}/api/docente/${docenteIdActual}/mesas?t=${timestamp}`;
       const res = await fetch(url, {
@@ -167,6 +171,7 @@ const DocenteDashboard: React.FC = () => {
       let mesasData: Mesa[] = [];
       try {
         const parsedData = JSON.parse(responseText);
+        console.log("[refreshMesas] Datos crudos recibidos:", parsedData);
         if (Array.isArray(parsedData)) {
           mesasData = parsedData as Mesa[];
         } else {
@@ -175,7 +180,8 @@ const DocenteDashboard: React.FC = () => {
           setLoading(false);
           return;
         }
-      } catch {
+      } catch (e) {
+        console.error("[refreshMesas] Error parseando JSON:", e, responseText);
         setMesas([]);
         setMesasConfirmadas([]);
         setLoading(false);
@@ -196,6 +202,8 @@ const DocenteDashboard: React.FC = () => {
           Array.isArray(mesa.docentes) &&
           mesa.docentes.some((d) => d.id === docenteIdActual)
       );
+      console.log("[refreshMesas] mesasPendientes:", mesasPendientes);
+      console.log("[refreshMesas] mesasConfirmadas:", mesasConfirmadas);
       setMesas(mesasPendientes);
       setMesasConfirmadas(mesasConfirmadas);
       setLoading(false);
@@ -279,8 +287,10 @@ const DocenteDashboard: React.FC = () => {
     navigate("/login");
   };
 
-  // Log de depuración para ver el contenido real de mesasConfirmadas
-  console.log("mesasConfirmadas en render:", mesasConfirmadas);
+  // Log de depuración para ver el contenido real de mesas y docenteId
+  console.log("[render] docenteId:", docenteId);
+  console.log("[render] mesas:", mesas);
+  console.log("[render] mesasConfirmadas:", mesasConfirmadas);
 
   // Indicador visual del valor de activeTab
   const debugActiveTab = (
