@@ -3,13 +3,7 @@ import { Mesa } from "../types";
 // Interfaz para el cliente de base de datos
 export interface DatabaseClient {
   from: (table: string) => {
-    select: (columns?: string) => {
-      or: (condition: string) => Promise<{ data: any[] | null; error: any }>;
-      eq: (
-        column: string,
-        value: any
-      ) => Promise<{ data: any[] | null; error: any }>;
-    };
+    select: (columns?: string) => Promise<{ data: any[] | null; error: any }>;
     insert: (data: any) => {
       select: () => Promise<{ data: any[] | null; error: any }>;
     };
@@ -158,10 +152,7 @@ export class MesaRepository {
         const docenteId = docente.id;
 
         // Buscar otras mesas donde este docente está asignado
-        const existingMesasResult = await this.db
-          .from("mesas")
-          .select("*")
-          .or(`docente_titular.eq.${docenteId},docente_vocal.eq.${docenteId}`);
+        const existingMesasResult = await this.db.from("mesas").select("*");
 
         if (existingMesasResult.error) {
           console.error(
@@ -231,20 +222,14 @@ export class MesaRepository {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
-    const updateResult = await this.db
-      .from("mesas")
-      .update(this.adaptMesaToDB(mesaActualizada))
-      .eq("id", mesaId);
+    await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada));
 
-    if (updateResult.error) throw new Error(updateResult.error.message);
-
-    const result = await this.db.from("mesas").select("*").eq("id", mesaId);
-
-    if (!result.data || result.data.length === 0) {
+    const result = await this.db.from("mesas").select("*");
+    const mesa = result.data?.find((m) => m.id === mesaId);
+    if (!mesa) {
       throw new Error("No se encontró la mesa actualizada");
     }
-
-    return this.adaptMesaFromDB(result.data[0]);
+    return this.adaptMesaFromDB(mesa);
   }
 
   public async deleteMesa(mesaId: string): Promise<void> {
@@ -268,51 +253,32 @@ export class MesaRepository {
       docente.id === docenteId ? { ...docente, confirmacion } : docente
     );
 
-    const result = await this.db
-      .from("mesas")
-      .update({ docentes: docentesActualizados })
-      .eq("id", mesaId);
+    await this.db.from("mesas").update({ docentes: docentesActualizados });
 
-    if (result.error) throw new Error(result.error.message);
-
-    const updatedMesa = await this.db
-      .from("mesas")
-      .select("*")
-      .eq("id", mesaId);
-
-    if (!updatedMesa.data || updatedMesa.data.length === 0) {
+    const updatedMesa = await this.db.from("mesas").select("*");
+    const mesaActualizada = updatedMesa.data?.find((m) => m.id === mesaId);
+    if (!mesaActualizada) {
       throw new Error("No se encontró la mesa actualizada");
     }
-
-    return this.adaptMesaFromDB(updatedMesa.data[0]);
+    return this.adaptMesaFromDB(mesaActualizada);
   }
 
   async confirmarMesa(mesaId: string): Promise<Mesa> {
-    const result = await this.db
-      .from("mesas")
-      .update({ estado: "confirmada" })
-      .eq("id", mesaId);
+    await this.db.from("mesas").update({ estado: "confirmada" });
 
-    if (result.error) throw new Error(result.error.message);
-
-    const updatedMesa = await this.db
-      .from("mesas")
-      .select("*")
-      .eq("id", mesaId);
-
-    if (!updatedMesa.data || updatedMesa.data.length === 0) {
+    const updatedMesa = await this.db.from("mesas").select("*");
+    const mesa = updatedMesa.data?.find((m) => m.id === mesaId);
+    if (!mesa) {
       throw new Error("No se encontró la mesa actualizada");
     }
-
-    return this.adaptMesaFromDB(updatedMesa.data[0]);
+    return this.adaptMesaFromDB(mesa);
   }
 
   public async getMesaById(mesaId: string): Promise<Mesa | null> {
-    const result = await this.db.from("mesas").select("*").eq("id", mesaId);
-
-    if (result.error) throw new Error(result.error.message);
-    if (!result.data || result.data.length === 0) return null;
-    return this.adaptMesaFromDB(result.data[0]);
+    const result = await this.db.from("mesas").select("*");
+    const mesa = result.data?.find((m) => m.id === mesaId);
+    if (!mesa) return null;
+    return this.adaptMesaFromDB(mesa);
   }
 
   private adaptarMesaParaFrontend(data: any): Mesa {
