@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { useNavigate } from "react-router-dom";
 
 interface Docente {
   id: string;
@@ -36,18 +37,18 @@ const DepartamentoDashboard: React.FC = () => {
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
-  
+
   // Efecto para limpiar el mensaje de error después de un tiempo
   useEffect(() => {
     let errorTimeout: NodeJS.Timeout;
-    
+
     if (error) {
       // Configurar un temporizador para limpiar el error después de 4 segundos
       errorTimeout = setTimeout(() => {
         setError(null);
       }, 4000); // 4000 ms = 4 segundos
     }
-    
+
     // Limpiar el temporizador cuando el componente se desmonte o el error cambie
     return () => {
       if (errorTimeout) {
@@ -56,12 +57,14 @@ const DepartamentoDashboard: React.FC = () => {
     };
   }, [error]); // Se vuelve a ejecutar cada vez que cambia el error
   const [activeTab, setActiveTab] = useState("pendientes");
-  
+
   // Función para mostrar errores temporales
   const showTemporaryError = (errorMessage: string) => {
     setError(errorMessage);
     // El useEffect se encargará de limpiar automáticamente el error después de 4 segundos
   };
+
+  const navigate = useNavigate();
 
   // Cargar mesas y docentes
   useEffect(() => {
@@ -133,7 +136,7 @@ const DepartamentoDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     // Validaciones básicas del formulario
     if (!form.materia || !form.docente_titular || !form.docente_vocal) {
       showTemporaryError(
@@ -141,37 +144,41 @@ const DepartamentoDashboard: React.FC = () => {
       );
       return;
     }
-    
+
     if (form.docente_titular === form.docente_vocal) {
       showTemporaryError("El titular y el vocal deben ser diferentes");
       return;
     }
-    
+
     // Validación de la fecha - no permite fechas pasadas o con menos de 48 horas
     if (form.fecha) {
       const fechaSeleccionada = new Date(form.fecha);
       fechaSeleccionada.setHours(23, 59, 59, 999);
-      
+
       const ahora = new Date();
-      
+
       // Validación: No permitir fechas en el pasado (comparación por días)
       const fechaSeleccionadaDia = new Date(fechaSeleccionada);
       fechaSeleccionadaDia.setHours(0, 0, 0, 0);
-      
+
       const ahoraDia = new Date(ahora);
       ahoraDia.setHours(0, 0, 0, 0);
-      
+
       if (fechaSeleccionadaDia < ahoraDia) {
         showTemporaryError("No se puede crear una mesa con fecha en el pasado");
         return;
       }
-      
+
       // Validación: Comprobar el margen de 48 horas
       const diffMs = fechaSeleccionada.getTime() - ahora.getTime();
       const diffHoras = diffMs / (1000 * 60 * 60);
-      
+
       if (diffHoras < 48) {
-        showTemporaryError(`La fecha de la mesa debe ser al menos 48 horas (2 días) en el futuro. Horas actuales: ${diffHoras.toFixed(1)}`);
+        showTemporaryError(
+          `La fecha de la mesa debe ser al menos 48 horas (2 días) en el futuro. Horas actuales: ${diffHoras.toFixed(
+            1
+          )}`
+        );
         return;
       }
     }
@@ -259,7 +266,9 @@ const DepartamentoDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error al guardar la mesa:", error);
-      showTemporaryError(`Error al guardar la mesa: ${error?.message || String(error)}`);
+      showTemporaryError(
+        `Error al guardar la mesa: ${error?.message || String(error)}`
+      );
     }
   };
 
@@ -404,13 +413,25 @@ const DepartamentoDashboard: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.clear();
+    localStorage.clear();
+    navigate("/login");
+  };
+
   return (
     <div className="container-fluid px-lg-5">
       <div className="row my-3">
-        <div className="col-12">
+        <div className="col-12 d-flex justify-content-between align-items-center">
           <h2 className="mb-3 text-center text-md-start">
-            Gestión de Mesas de Examen
+            Panel del Departamento - Gestión de Mesas de Examen
           </h2>
+          <button className="btn btn-outline-danger" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </div>
+        <div className="col-12">
+         
 
           <div className="d-grid d-md-block mb-3">
             <button
@@ -425,7 +446,7 @@ const DepartamentoDashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* Tabs de navegación */}
+          {/* Tabs de navegación mejoradas */}
           <ul className="nav nav-tabs mb-3">
             <li className="nav-item">
               <button
@@ -433,6 +454,7 @@ const DepartamentoDashboard: React.FC = () => {
                   activeTab === "pendientes" ? "active" : ""
                 }`}
                 onClick={() => setActiveTab("pendientes")}
+                type="button"
               >
                 Mesas Pendientes
               </button>
@@ -443,8 +465,31 @@ const DepartamentoDashboard: React.FC = () => {
                   activeTab === "confirmadas" ? "active" : ""
                 }`}
                 onClick={() => setActiveTab("confirmadas")}
+                type="button"
               >
                 Mesas Confirmadas
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                className={`nav-link ${
+                  activeTab === "docentes" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("docentes")}
+                type="button"
+              >
+                Docentes Registrados
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                className={`nav-link ${
+                  activeTab === "historial" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("historial")}
+                type="button"
+              >
+                Historial de Mesas
               </button>
             </li>
           </ul>
@@ -710,6 +755,85 @@ const DepartamentoDashboard: React.FC = () => {
                 </div>
               )}
             </>
+          )}
+
+          {/* Tab de docentes registrados */}
+          {activeTab === "docentes" && (
+            <div className="card mt-4 shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Docentes registrados</h5>
+                {docentes.length === 0 ? (
+                  <div className="alert alert-info">
+                    No hay docentes registrados.
+                  </div>
+                ) : (
+                  <table className="table table-striped table-hover">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: "60px" }}>#</th>
+                        <th>Nombre y Apellido</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {docentes.map((docente, idx) => (
+                        <tr key={docente.id}>
+                          <td>{idx + 1}</td>
+                          <td>{docente.nombre}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "historial" && (
+            <div className="card mt-4 shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Historial de Mesas</h5>
+                {(() => {
+                  const hoy = new Date();
+                  const historial = mesasConfirmadas.filter((mesa) => {
+                    const fechaMesa = new Date(mesa.fecha);
+                    return fechaMesa < hoy;
+                  });
+                  if (historial.length === 0) {
+                    return (
+                      <div className="alert alert-info">
+                        No hay mesas en el historial.
+                      </div>
+                    );
+                  }
+                  return (
+                    <table className="table table-striped table-hover">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Materia</th>
+                          <th>Fecha</th>
+                          <th>Hora</th>
+                          <th>Aula</th>
+                          <th>Docente Titular</th>
+                          <th>Docente Vocal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historial.map((mesa) => (
+                          <tr key={mesa.id}>
+                            <td>{mesa.materia}</td>
+                            <td>{mesa.fecha}</td>
+                            <td>{mesa.hora}</td>
+                            <td>{mesa.aula}</td>
+                            <td>{mesa.docentes?.[0]?.nombre || "-"}</td>
+                            <td>{mesa.docentes?.[1]?.nombre || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
           )}
 
           {showForm && (

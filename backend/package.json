@@ -1,18 +1,18 @@
 {
-  "name": "pwa-ucp",
+  "name": "mesa-de-examen-backend",
   "version": "1.0.0",
   "description": "Backend para PWA de gestión de mesas de exámenes",
-  "main": "dist/backend/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node dist/backend/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only backend/index.ts",
-    "build": "tsc && cp -r backend/data dist/backend/data",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only index.ts",
+    "build": "tsc && cp -r data dist/data",
     "test": "jest",
     "test:watch": "jest --watchAll=false",
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"backend/**/*.ts\""
+    "format": "prettier --write \"**/*.ts\""
   },
   "keywords": [
     "pwa",

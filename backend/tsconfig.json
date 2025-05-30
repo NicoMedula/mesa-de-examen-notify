@@ -12,9 +12,9 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["backend/*"]
+      "@/*": ["./*"]
     }
   },
-  "include": ["backend/**/*"],
+  "include": ["**/*"],
   "exclude": ["node_modules", "**/*.test.ts", "**/*.test.spec.ts"]
 }
