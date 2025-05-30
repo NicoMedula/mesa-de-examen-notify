@@ -183,7 +183,7 @@ app.use(
   }
 );
 
-const PORT = 3005;
+const PORT = process.env.PORT || 3005;
 
 // Agregar manejador global de errores para prevenir que la aplicación se caiga
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
