@@ -25,7 +25,7 @@ const io = new Server(httpServer, {
 // Configuración de CORS mejorada
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3003", "https://mesa-de-examen-notify-15i0ylotc-nicolas-medulas-projects.vercel.app/"],
+    origin: ["http://localhost:3000", "http://localhost:3003", /\.vercel\.app$/],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Origin",
