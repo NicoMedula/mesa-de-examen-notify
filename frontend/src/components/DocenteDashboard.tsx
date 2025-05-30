@@ -204,8 +204,8 @@ const DocenteDashboard: React.FC = () => {
       );
       console.log("[refreshMesas] mesasPendientes:", mesasPendientes);
       console.log("[refreshMesas] mesasConfirmadas:", mesasConfirmadas);
-      setMesas(mesasPendientes);
-      setMesasConfirmadas(mesasConfirmadas);
+      setMesas([...mesasPendientes]);
+      setMesasConfirmadas([...mesasConfirmadas]);
       setLoading(false);
     } catch (error: any) {
       setError("Error al cargar las mesas. Por favor, intente más tarde.");
@@ -489,10 +489,19 @@ const DocenteDashboard: React.FC = () => {
                                             handleConfirm(mesa.id, "aceptado")
                                           }
                                           disabled={
-                                            docente.confirmacion === "aceptado"
+                                            docente.confirmacion ===
+                                              "aceptado" &&
+                                            [
+                                              "confirmada",
+                                              "cancelada",
+                                            ].includes(mesa.estado || "")
                                           }
                                         >
-                                          {docente.confirmacion === "aceptado"
+                                          {docente.confirmacion ===
+                                            "aceptado" &&
+                                          ["confirmada", "cancelada"].includes(
+                                            mesa.estado || ""
+                                          )
                                             ? "Aceptado"
                                             : "Aceptar"}
                                         </button>
@@ -502,10 +511,19 @@ const DocenteDashboard: React.FC = () => {
                                             handleConfirm(mesa.id, "rechazado")
                                           }
                                           disabled={
-                                            docente.confirmacion === "rechazado"
+                                            docente.confirmacion ===
+                                              "rechazado" &&
+                                            [
+                                              "confirmada",
+                                              "cancelada",
+                                            ].includes(mesa.estado || "")
                                           }
                                         >
-                                          {docente.confirmacion === "rechazado"
+                                          {docente.confirmacion ===
+                                            "rechazado" &&
+                                          ["confirmada", "cancelada"].includes(
+                                            mesa.estado || ""
+                                          )
                                             ? "Rechazado"
                                             : "Rechazar"}
                                         </button>
