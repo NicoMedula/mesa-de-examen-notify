@@ -138,10 +138,8 @@ const DocenteDashboard: React.FC = () => {
   }, [docenteId]);
 
   const refreshMesas = async (idToUse = docenteId) => {
-    const docenteIdActual =
-      idToUse ||
-      docenteId ||
-      sessionStorage.getItem("docenteId") ||
+    const docenteIdActual = idToUse || docenteId || 
+      sessionStorage.getItem("docenteId") || 
       localStorage.getItem("docenteId");
 
     console.log("[refreshMesas] docenteIdActual:", docenteIdActual);
@@ -153,9 +151,7 @@ const DocenteDashboard: React.FC = () => {
     }
 
     try {
-      console.log(
-        `[refreshMesas] Fetching mesas para docente ${docenteIdActual}...`
-      );
+      console.log(`[refreshMesas] Solicitando mesas para docente ${docenteIdActual}...`);
       const timestamp = new Date().getTime();
       const url = `${API_URL}/api/docente/${docenteIdActual}/mesas?t=${timestamp}`;
       const res = await fetch(url, {
@@ -167,48 +163,45 @@ const DocenteDashboard: React.FC = () => {
         mode: "cors",
         cache: "no-cache",
       });
-      const responseText = await res.text();
-      let mesasData: Mesa[] = [];
-      try {
-        const parsedData = JSON.parse(responseText);
-        console.log("[refreshMesas] Datos crudos recibidos:", parsedData);
-        if (Array.isArray(parsedData)) {
-          mesasData = parsedData as Mesa[];
-        } else {
-          setMesas([]);
-          setMesasConfirmadas([]);
-          setLoading(false);
-          return;
-        }
-      } catch (e) {
-        console.error("[refreshMesas] Error parseando JSON:", e, responseText);
-        setMesas([]);
-        setMesasConfirmadas([]);
-        setLoading(false);
-        return;
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
       }
-      // Filtrado igual que antes: solo por estado y que el docente esté en la mesa
-      const mesasConfirmadas = mesasData.filter(
-        (mesa) =>
-          mesa.estado === "confirmada" &&
-          mesa.docentes &&
-          Array.isArray(mesa.docentes) &&
-          mesa.docentes.some((d) => d.id === docenteIdActual)
+
+      const mesasData: Mesa[] = await res.json();
+      
+      // Asegurarse de que tenemos datos válidos
+      if (!Array.isArray(mesasData)) {
+        throw new Error("Formato de datos inválido recibido del servidor");
+      }
+
+      // Filtrar mesas donde el docente actual está involucrado
+      const mesasFiltradas = mesasData.filter(mesa => 
+        mesa?.docentes?.some(docente => docente.id === docenteIdActual)
       );
-      const mesasPendientes = mesasData.filter(
-        (mesa) =>
-          mesa.estado !== "confirmada" &&
-          mesa.docentes &&
-          Array.isArray(mesa.docentes) &&
-          mesa.docentes.some((d) => d.id === docenteIdActual)
+
+      const mesasConfirmadas = mesasFiltradas.filter(
+        mesa => mesa.estado === "confirmada"
       );
-      console.log("[refreshMesas] mesasPendientes:", mesasPendientes);
-      console.log("[refreshMesas] mesasConfirmadas:", mesasConfirmadas);
-      setMesas([...mesasPendientes]);
-      setMesasConfirmadas([...mesasConfirmadas]);
-      setLoading(false);
+      
+      const mesasPendientes = mesasFiltradas.filter(
+        mesa => mesa.estado !== "confirmada"
+      );
+
+      console.log("[refreshMesas] Mesas actualizadas:", {
+        total: mesasFiltradas.length,
+        confirmadas: mesasConfirmadas.length,
+        pendientes: mesasPendientes.length
+      });
+
+      // Actualizar el estado con los nuevos datos
+      setMesas(mesasPendientes);
+      setMesasConfirmadas(mesasConfirmadas);
+      
     } catch (error: any) {
-      setError("Error al cargar las mesas. Por favor, intente más tarde.");
+      console.error("Error en refreshMesas:", error);
+      setError(`Error al actualizar las mesas: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };
@@ -223,9 +216,28 @@ const DocenteDashboard: React.FC = () => {
         `Docente ${docenteId} - Cambiando estado de mesa ${mesaId} a: ${confirmacion}`
       );
 
-      // Crear un controlador para abortar la petición si tarda demasiado
+      // Actualización optimista - actualiza la UI inmediatamente
+      const actualizarMesas = (mesas: Mesa[]) => 
+        mesas.map(mesa => {
+          if (mesa.id === mesaId) {
+            return {
+              ...mesa,
+              docentes: mesa.docentes.map(docente => 
+                docente.id === docenteId 
+                  ? { ...docente, confirmacion } 
+                  : docente
+              )
+            };
+          }
+          return mesa;
+        });
+
+      setMesas(prevMesas => actualizarMesas(prevMesas));
+      setMesasConfirmadas(prevMesas => actualizarMesas(prevMesas));
+
+      // Hacer la llamada a la API
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       try {
         const res = await fetch(
@@ -238,29 +250,30 @@ const DocenteDashboard: React.FC = () => {
           }
         );
 
-        // Limpiar el timeout ya que la petición se completó
         clearTimeout(timeoutId);
 
-        // Verificar si la petición fue exitosa
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.message || "Error al confirmar la mesa");
         }
 
-        // Actualizar las mesas para reflejar el cambio
-        refreshMesas();
+        // Refrescar desde el servidor para asegurar consistencia
+        await refreshMesas();
+        
       } catch (error: any) {
         if (error?.name === "AbortError") {
-          setError(
-            "La petición ha tardado demasiado tiempo. Por favor, inténtelo de nuevo."
-          );
+          setError("La petición ha tardado demasiado tiempo. Por favor, inténtelo de nuevo.");
         } else {
           setError(error?.message || "Error al confirmar la mesa");
+          // Revertir la actualización optimista en caso de error
+          await refreshMesas();
         }
       }
     } catch (error: any) {
       console.error("Error al confirmar la mesa:", error);
       setError("Error al confirmar la mesa. Por favor, inténtelo de nuevo.");
+      // Revertir la actualización optimista en caso de error
+      await refreshMesas();
     }
   };
 
