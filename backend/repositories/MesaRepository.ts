@@ -56,13 +56,13 @@ export class MesaRepository {
   }
 
   public async getAllMesas(): Promise<Mesa[]> {
-    const result = await this.db.from("mesas").select("*").or("id.ne.null");
+    const result = await this.db.from("mesas").select("*");
     if (result.error) throw new Error(result.error.message);
     return (result.data || []).map(this.adaptMesaFromDB);
   }
 
   public async getMesasByDocenteId(docenteId: string): Promise<Mesa[]> {
-    const result = await this.db.from("mesas").select("*").or("id.ne.null");
+    const result = await this.db.from("mesas").select("*");
     if (result.error) throw new Error(result.error.message);
 
     const mesasDelDocente = (result.data || []).filter((mesa: any) => {

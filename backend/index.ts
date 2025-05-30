@@ -21,11 +21,6 @@ const io = new Server(httpServer, {
   },
 });
 
-// Middleware de logging para depuración
-app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
 
 // Configuración de CORS mejorada
 app.use(
@@ -42,6 +37,13 @@ app.use(
     credentials: true,
   })
 );
+
+// Middleware de logging para depuración
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 
 // Procesar datos JSON
 app.use(express.json());
