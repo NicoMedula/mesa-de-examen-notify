@@ -21,7 +21,8 @@ export class MesaService {
   private constructor() {
     this.mesaRepository = MesaRepository.getInstance();
     // Inicialmente se asigna una estrategia por defecto, pero esto puede cambiarse más adelante
-    this.notificacionStrategy = WebSocketNotificacionStrategy.getInstance();
+    // Usamos PushNotificacionStrategy como estrategia predeterminada para asegurar que las notificaciones funcionen
+    this.notificacionStrategy = PushNotificacionStrategy.getInstance();
   }
 
   public static getInstance(): MesaService {
@@ -58,7 +59,17 @@ export class MesaService {
         mesa,
         docente
       );
+      
+      // Aseguramos que se envíe la notificación usando la estrategia actual
       await this.notificacionStrategy.enviar(notificacion);
+      
+      // Siempre enviamos la notificación push además de la estrategia actual
+      const pushStrategy = PushNotificacionStrategy.getInstance();
+      const notificacionPush = {
+        ...notificacion,
+        destinatarios: mesa.docentes.map(d => d.id).filter(id => id !== docenteId) // Notificar a todos los demás docentes
+      };
+      await pushStrategy.enviar(notificacionPush);
     }
 
     return mesa;
@@ -138,5 +149,29 @@ export class MesaService {
 
   public async getAllMesas(): Promise<Mesa[]> {
     return this.mesaRepository.getAllMesas();
+  }
+
+  /**
+   * Obtiene una mesa específica por su ID
+   * @param mesaId ID de la mesa a obtener
+   * @returns La mesa encontrada o null si no existe
+   */
+  public async getMesaById(mesaId: string): Promise<Mesa | null> {
+    try {
+      console.log(`[MesaService.getMesaById] Obteniendo mesa con ID ${mesaId}`);
+      const mesas = await this.getAllMesas();
+      const mesa = mesas.find(m => m.id === mesaId);
+      
+      if (!mesa) {
+        console.log(`[MesaService.getMesaById] No se encontró la mesa con ID ${mesaId}`);
+        return null;
+      }
+      
+      console.log(`[MesaService.getMesaById] Mesa encontrada: ${JSON.stringify(mesa, null, 2)}`);
+      return mesa;
+    } catch (error) {
+      console.error(`[MesaService.getMesaById] Error al obtener mesa ${mesaId}:`, error);
+      throw error;
+    }
   }
 }

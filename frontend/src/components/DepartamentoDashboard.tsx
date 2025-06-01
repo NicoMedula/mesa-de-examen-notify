@@ -56,6 +56,20 @@ const DepartamentoDashboard: React.FC = () => {
       }
     };
   }, [error]); // Se vuelve a ejecutar cada vez que cambia el error
+  
+  // Configurar refresco automático cada 10 segundos
+  useEffect(() => {
+    // Refresco inicial
+    refreshMesas();
+    
+    // Configurar intervalo de refresco
+    const refreshInterval = setInterval(() => {
+      refreshMesas();
+    }, 10000); // Refrescar cada 10 segundos
+    
+    // Limpiar intervalo al desmontar
+    return () => clearInterval(refreshInterval);
+  }, []);
   const [activeTab, setActiveTab] = useState("pendientes");
 
   // Función para mostrar errores temporales
@@ -67,34 +81,33 @@ const DepartamentoDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Cargar mesas y docentes
+  // Función para refrescar las mesas desde la BD
+  const refreshMesas = async () => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      const res = await fetch(`${API_URL}/api/mesas`);
+      if (!res.ok) {
+        console.error("Error al refrescar las mesas:", res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log("Mesas actualizadas desde backend:", data);
+      
+      if (Array.isArray(data)) {
+        const confirmadas = data.filter((m) => m?.estado === "confirmada");
+        const pendientes = data.filter((m) => m?.estado !== "confirmada");
+        setMesasConfirmadas(confirmadas);
+        setMesas(pendientes);
+      }
+    } catch (error) {
+      console.error("Error al refrescar las mesas:", error);
+    }
+  };
+  
   useEffect(() => {
     const fetchMesas = async () => {
       try {
-        const API_URL = process.env.REACT_APP_API_URL;
-        const res = await fetch(`${API_URL}/api/mesas`);
-        if (!res.ok) {
-          console.error("Error fetching mesas:", res.status);
-          return;
-        }
-        const data = await res.json();
-        console.log("MESAS DESDE BACKEND", data);
-
-        // Verificar que data sea un array antes de procesarlo
-        if (Array.isArray(data)) {
-          // Separar mesas confirmadas y pendientes
-          const confirmadas = data.filter(
-            (m: Mesa) => m?.estado === "confirmada"
-          );
-          const pendientes = data.filter(
-            (m: Mesa) => m?.estado !== "confirmada"
-          );
-          setMesasConfirmadas(confirmadas || []);
-          setMesas(pendientes || []);
-        } else {
-          console.error("Data is not an array:", data);
-          setMesasConfirmadas([]);
-          setMesas([]);
-        }
+        await refreshMesas();
       } catch (error) {
         console.error("Error fetching mesas:", error);
         setMesasConfirmadas([]);
@@ -296,74 +309,146 @@ const DepartamentoDashboard: React.FC = () => {
   };
 
   // Función para refrescar las listas de mesas
-  const refreshMesas = async () => {
-    try {
-      const API_URL = process.env.REACT_APP_API_URL;
-      const res = await fetch(`${API_URL}/api/mesas`);
-      if (!res.ok) {
-        console.error("Error al refrescar las mesas:", res.status);
-        return;
-      }
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const confirmadas = data.filter((m) => m?.estado === "confirmada");
-        const pendientes = data.filter((m) => m?.estado !== "confirmada");
-        setMesasConfirmadas(confirmadas);
-        setMesas(pendientes);
-      }
-    } catch (error) {
-      console.error("Error al refrescar las mesas:", error);
-    }
-  };
+  // La función refreshMesas ya está definida arriba
 
   const handleConfirmMesa = async (mesaId: string) => {
     try {
-      console.log("Confirming mesa with ID:", mesaId);
+      console.log("[handleConfirmMesa] Iniciando confirmación de mesa con ID:", mesaId);
+      
+      // Primero, obtenemos los datos actuales de la mesa
+      const mesaToUpdate = mesas.find((m) => m.id === mesaId);
+      if (!mesaToUpdate) {
+        console.error("[handleConfirmMesa] No se encontró la mesa a confirmar:", mesaId);
+        setError("No se encontró la mesa a confirmar");
+        return;
+      }
 
       const API_URL = process.env.REACT_APP_API_URL;
-      const res = await fetch(`${API_URL}/api/mesas/${mesaId}`, {
+      console.log("[handleConfirmMesa] API_URL:", API_URL);
+
+      // PASO 1: Primero forzamos la confirmación de cada docente individualmente
+      console.log("[handleConfirmMesa] PASO 1: Confirmando cada docente individualmente");
+      for (const docente of mesaToUpdate.docentes) {
+        try {
+          console.log(`[handleConfirmMesa] Confirmando docente ${docente.id} en mesa ${mesaId}`);
+          const confirmRes = await fetch(
+            `${API_URL}/api/mesa/${mesaId}/docente/${docente.id}/confirmar`,
+            {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json"
+                // No enviar cabeceras de caché que causan problemas CORS
+              },
+              body: JSON.stringify({ confirmacion: "aceptado" }),
+            }
+          );
+
+          if (!confirmRes.ok) {
+            const errorText = await confirmRes.text();
+            console.warn(`[handleConfirmMesa] Advertencia al confirmar docente ${docente.id}:`, errorText);
+          } else {
+            console.log(`[handleConfirmMesa] Docente ${docente.id} confirmado exitosamente`);
+          }
+        } catch (docError) {
+          console.warn(`[handleConfirmMesa] Error al confirmar docente ${docente.id}:`, docError);
+          // Continuamos con el siguiente docente aunque falle uno
+        }
+      }
+      
+      // Esperamos un momento para que las confirmaciones se procesen
+      console.log("[handleConfirmMesa] Esperando 2 segundos para que se procesen las confirmaciones...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // PASO 2: Ahora actualizamos el estado general de la mesa
+      console.log("[handleConfirmMesa] PASO 2: Actualizando estado general de la mesa");
+      
+      // Forzamos todas las confirmaciones como aceptadas y el estado como confirmada
+      const mesaData = {
+        ...mesaToUpdate,
+        estado: "confirmada",
+        docentes: mesaToUpdate.docentes.map(d => ({ ...d, confirmacion: "aceptado" }))
+      };
+
+      console.log("[handleConfirmMesa] Datos completos a enviar:", mesaData);
+
+      // Usamos un timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`${API_URL}/api/mesas/${mesaId}?t=${timestamp}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado: "confirmada" }),
+        headers: { 
+          "Content-Type": "application/json"
+          // Eliminamos cabeceras de caché que causan problemas con CORS
+        },
+        body: JSON.stringify(mesaData),
       });
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error(`Error ${res.status} al confirmar la mesa:`, errorText);
+        console.error(`[handleConfirmMesa] Error ${res.status} al confirmar la mesa:`, errorText);
         setError(`Error al confirmar la mesa: ${res.status} ${errorText}`);
         return;
       }
+      
+      // Obtenemos la respuesta para tener el objeto actualizado correcto
+      const updatedMesaResponse = await res.json();
+      console.log("[handleConfirmMesa] Mesa confirmada con éxito:", updatedMesaResponse);
+      
+      // Actualización optimista en la UI usando los datos que retornó el servidor
+      setMesasConfirmadas(prev => [...prev, updatedMesaResponse]);
+      setMesas(prev => prev.filter((m) => m.id !== mesaId));
+      
+      // Esperamos un poco más para asegurar que todos los cambios se han aplicado
+      console.log("[handleConfirmMesa] Esperando 3 segundos adicionales antes de refrescar...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Actualizar las listas después de confirmar
-      const mesaConfirmada = mesas.find((m) => m.id === mesaId);
-      if (mesaConfirmada) {
-        const updatedMesa = { ...mesaConfirmada, estado: "confirmada" };
-        setMesasConfirmadas([...mesasConfirmadas, updatedMesa]);
-        setMesas(mesas.filter((m) => m.id !== mesaId));
-      } else {
-        console.warn("Mesa not found in pending list:", mesaId);
-        // Refrescar las listas completas para asegurar datos actualizados
-        await refreshMesas();
+      // PASO 3: Hacemos un segundo llamado explícito para confirmar la mesa a nivel de repositorio
+      console.log("[handleConfirmMesa] PASO 3: Forzando confirmación directa en repositorio");
+      try {
+        // Agregamos timestamp para evitar la caché y problemas con CORS
+        const timestamp = new Date().getTime();
+        const confirmRes = await fetch(`${API_URL}/api/mesa/${mesaId}/confirmar?t=${timestamp}`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+            // Eliminamos cabeceras que causan problemas con CORS
+          }
+        });
+        
+        if (confirmRes.ok) {
+          console.log("[handleConfirmMesa] Confirmación directa exitosa");
+        } else {
+          console.warn("[handleConfirmMesa] Advertencia en confirmación directa:", await confirmRes.text());
+        }
+      } catch (confirmError) {
+        console.warn("[handleConfirmMesa] Error en confirmación directa:", confirmError);
       }
+
+      // Refrescamos los datos desde el servidor para asegurar sincronización
+      console.log("[handleConfirmMesa] Refrescando datos desde el servidor...");
+      await refreshMesas();
+      
+      console.log("[handleConfirmMesa] Proceso de confirmación completado");
     } catch (error: any) {
-      console.error("Error al confirmar mesa:", error);
+      console.error("[handleConfirmMesa] Error general al confirmar mesa:", error);
       setError(
         `Error al confirmar la mesa: ${error?.message || String(error)}`
       );
+      // En caso de error, refrescamos para asegurar consistencia
+      await refreshMesas();
     }
   };
 
   const handleCancelMesa = async (mesaId: string) => {
     try {
-      console.log("Canceling mesa with ID:", mesaId);
+      console.log("[handleCancelMesa] Iniciando cancelación de mesa con ID:", mesaId);
 
-      // Primero obtenemos la mesa para resets los estados de confirmación de los docentes a pendiente
+      // Primero obtenemos la mesa para resetear los estados de confirmación de los docentes a pendiente
       const API_URL = process.env.REACT_APP_API_URL;
       const mesaCancelada = mesasConfirmadas.find((m) => m.id === mesaId);
 
       if (!mesaCancelada) {
         console.warn(
-          "Mesa no encontrada en la lista de mesas confirmadas:",
+          "[handleCancelMesa] Mesa no encontrada en la lista de mesas confirmadas:",
           mesaId
         );
         setError(`Error al cancelar: Mesa no encontrada`);
@@ -376,8 +461,16 @@ const DepartamentoDashboard: React.FC = () => {
         confirmacion: "pendiente", // Resetear a pendiente para que el docente pueda confirmar nuevamente
       }));
 
+      console.log("[handleCancelMesa] Datos preparados para enviar:", {
+        estado: "pendiente",
+        docentes: docentesReiniciados
+      });
+
+      // Agregamos timestamp para evitar la caché
+      const timestamp = new Date().getTime();
+      
       // Enviamos la actualización con el cambio de estado y los docentes reiniciados
-      const res = await fetch(`${API_URL}/api/mesas/${mesaId}`, {
+      const res = await fetch(`${API_URL}/api/mesas/${mesaId}?t=${timestamp}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -388,28 +481,39 @@ const DepartamentoDashboard: React.FC = () => {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error(`Error ${res.status} al cancelar la mesa:`, errorText);
+        console.error(`[handleCancelMesa] Error ${res.status} al cancelar la mesa:`, errorText);
         setError(`Error al cancelar la mesa: ${res.status} ${errorText}`);
         return;
       }
 
-      // Actualizar las listas después de cancelar
-      const updatedMesa = {
-        ...mesaCancelada,
-        estado: "pendiente",
-        docentes: docentesReiniciados,
-      };
-      setMesas([...mesas, updatedMesa]);
-      setMesasConfirmadas(mesasConfirmadas.filter((m) => m.id !== mesaId));
+      // Obtener la respuesta para asegurar que tenemos los datos correctos
+      const updatedMesaResponse = await res.json();
+      console.log("[handleCancelMesa] Respuesta del servidor:", updatedMesaResponse);
+      
+      // Actualización optimista en la UI usando los datos que retornó el servidor
+      setMesas(prev => [...prev, updatedMesaResponse]);
+      setMesasConfirmadas(prev => prev.filter((m) => m.id !== mesaId));
+
+      // Esperar unos segundos y refrescar los datos para asegurar sincronización
+      console.log("[handleCancelMesa] Esperando 2 segundos antes de refrescar datos...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Refrescar datos desde el servidor
+      console.log("[handleCancelMesa] Refrescando datos desde el servidor...");
+      await refreshMesas();
 
       // Mostrar mensaje de éxito
       setError(
         "La mesa ha sido cancelada. Los docentes podrán modificar su confirmación nuevamente."
       );
       setTimeout(() => setError(null), 5000); // Limpiar el mensaje después de 5 segundos
+      
+      console.log("[handleCancelMesa] Proceso de cancelación completado");
     } catch (error: any) {
-      console.error("Error al cancelar mesa:", error);
+      console.error("[handleCancelMesa] Error general al cancelar mesa:", error);
       setError(`Error al cancelar la mesa: ${error?.message || String(error)}`);
+      // En caso de error, refrescamos para asegurar consistencia
+      await refreshMesas();
     }
   };
 

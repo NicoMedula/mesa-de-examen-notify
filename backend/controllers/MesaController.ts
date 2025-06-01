@@ -347,4 +347,58 @@ export class MesaController {
       res.status(500).json({ error: "Error al obtener las mesas" });
     }
   }
+
+  /**
+   * Endpoint especial para forzar la confirmación directa de una mesa completa desde el departamento
+   * @param req Request con el ID de la mesa
+   * @param res Response
+   */
+  public async confirmarMesaDirecto(req: Request, res: Response): Promise<void> {
+    try {
+      const { mesaId } = req.params;
+      
+      console.log(`[confirmarMesaDirecto] Forzando confirmación directa de mesa ${mesaId}`);
+
+      if (!mesaId) {
+        res.status(400).json({
+          error: "Datos incompletos",
+          detalle: "Se requiere el ID de la mesa",
+        });
+        return;
+      }
+
+      // 1. Obtener la mesa actual
+      const mesa = await this.mesaService.getMesaById(mesaId);
+      if (!mesa) {
+        console.error(`[confirmarMesaDirecto] Mesa ${mesaId} no encontrada`);
+        res.status(404).json({ error: "Mesa no encontrada" });
+        return;
+      }
+      
+      console.log(`[confirmarMesaDirecto] Mesa encontrada: ${JSON.stringify(mesa, null, 2)}`);
+      
+      // 2. Actualizar el estado de la mesa a "confirmada"
+      // y todas las confirmaciones de docentes a "aceptado"
+      const docentesActualizados = mesa.docentes.map(d => ({
+        ...d,
+        confirmacion: "aceptado" as import("../types").EstadoConfirmacion
+      }));
+      
+      const mesaActualizada = await this.mesaService.updateMesa(mesaId, {
+        ...mesa,
+        estado: "confirmada",
+        docentes: docentesActualizados
+      });
+      
+      console.log(`[confirmarMesaDirecto] Mesa actualizada con éxito: ${JSON.stringify(mesaActualizada, null, 2)}`);
+      
+      res.status(200).json(mesaActualizada);
+    } catch (error: any) {
+      console.error("[confirmarMesaDirecto] Error:", error);
+      res.status(500).json({
+        error: "Error al confirmar la mesa directamente",
+        detalle: error?.message || "Error desconocido",
+      });
+    }
+  }
 }
