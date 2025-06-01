@@ -42,18 +42,22 @@ export class MesaService {
     return this.mesaRepository.getMesasByDocenteId(docenteId);
   }
 
+  /**
+   * Confirma la mesa para un docente y envía notificación push si corresponde.
+   * No usa valores predeterminados ni arrays hardcodeados.
+   */
   public async confirmarMesa(
     mesaId: string,
     docenteId: string,
     confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
+    console.log(`[confirmarMesa] Mesa: ${mesaId}, Docente: ${docenteId}, Confirmacion: ${confirmacion}`);
     const mesa = await this.mesaRepository.updateConfirmacion(
       mesaId,
       docenteId,
       confirmacion
     );
     const docente = mesa.docentes.find((d) => d.id === docenteId);
-
     if (docente) {
       const notificacion = NotificacionFactory.crearNotificacionConfirmacion(
         mesa,
@@ -61,8 +65,12 @@ export class MesaService {
       );
       
       // Aseguramos que se envíe la notificación usando la estrategia actual
-      await this.notificacionStrategy.enviar(notificacion);
-      
+      try {
+        await this.notificacionStrategy.enviar(notificacion);
+        console.log("[confirmarMesa] Notificación push enviada a:", docenteId);
+      } catch (err) {
+        console.error("[confirmarMesa] Error enviando notificación push:", err);
+      }
       // Siempre enviamos la notificación push además de la estrategia actual
       const pushStrategy = PushNotificacionStrategy.getInstance();
       const notificacionPush = {
@@ -111,7 +119,10 @@ export class MesaService {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
+    console.log('[updateMesa] Actualizando mesa', mesaId, 'con datos:', mesaActualizada);
     const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+    console.log('[updateMesa] Mesa después de actualizar en BD:', mesa);
+    
     // Notificación push para confirmación o cancelación SOLO a docentes asignados
     let mensaje = "";
     if (mesaActualizada.estado === "confirmada") {
@@ -136,9 +147,11 @@ export class MesaService {
           docenteId: docente.id,
           url: "/",
         };
-        console.log("Payload enviado a webpush (updateMesa):", payload);
+        console.log("[updateMesa] Payload enviado a webpush:", payload);
         await PushNotificacionStrategy.getInstance().enviar(notificacion);
       }
+    } else {
+      console.log('[updateMesa] No se envió notificación push porque el estado no es confirmada ni pendiente.');
     }
     return mesa;
   }
