@@ -1,0 +1,40 @@
+{
+  "mesas": [
+    {
+      "id": "M1",
+      "fecha": "2024-06-15",
+      "hora": "10:00",
+      "ubicacion": "Aula 301",
+      "docentes": [
+        {
+          "id": "123",
+          "nombre": "Prof. Gómez",
+          "confirmacion": "aceptado"
+        },
+        {
+          "id": "456",
+          "nombre": "Prof. Martínez",
+          "confirmacion": "aceptado"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "fecha": "2024-06-16",
+      "hora": "14:00",
+      "ubicacion": "Aula 302",
+      "docentes": [
+        {
+          "id": "123",
+          "nombre": "Prof. Gómez",
+          "confirmacion": "pendiente"
+        },
+        {
+          "id": "789",
+          "nombre": "Prof. Rodríguez",
+          "confirmacion": "pendiente"
+        }
+      ]
+    }
+  ]
+}}
