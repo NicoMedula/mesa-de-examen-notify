@@ -222,14 +222,17 @@ export class MesaRepository {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
-    await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada));
-
-    const result = await this.db.from("mesas").select("*");
-    const mesa = result.data?.find((m) => m.id === mesaId);
+    // Actualiza solo la mesa con el id indicado
+    const { error } = await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada)).eq("id", mesaId);
+    if (error) {
+      throw new Error(error.message || "Error al actualizar la mesa");
+    }
+    // Obtiene la mesa actualizada
+    const mesa = await this.getMesaById(mesaId);
     if (!mesa) {
       throw new Error("No se encontró la mesa actualizada");
     }
-    return this.adaptMesaFromDB(mesa);
+    return mesa;
   }
 
   public async deleteMesa(mesaId: string): Promise<void> {
@@ -243,24 +246,46 @@ export class MesaRepository {
     docenteId: string,
     confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
-    const mesa = await this.getMesaById(mesaId);
-    if (!mesa) {
-      throw new Error("Mesa no encontrada");
+    try {
+      // Primero obtenemos la mesa actual
+      const mesa = await this.getMesaById(mesaId);
+      if (!mesa) {
+        throw new Error("Mesa no encontrada");
+      }
+
+      // Verificamos que el docente exista en la mesa
+      const docenteExiste = mesa.docentes.some(d => d.id === docenteId);
+      if (!docenteExiste) {
+        throw new Error("El docente no está asignado a esta mesa");
+      }
+
+      // Actualizamos la confirmación del docente en el array de docentes
+      const docentesActualizados = mesa.docentes.map((docente) =>
+        docente.id === docenteId ? { ...docente, confirmacion } : docente
+      );
+
+      // Actualizamos en la base de datos
+      const { error } = await this.db
+        .from("mesas")
+        .update({ docentes: docentesActualizados })
+        .eq("id", mesaId);
+
+      if (error) {
+        console.error("Error al actualizar la confirmación:", error);
+        throw new Error("Error al actualizar la confirmación en la base de datos");
+      }
+
+      // Obtener la mesa actualizada
+      const mesaActualizada = await this.getMesaById(mesaId);
+      if (!mesaActualizada) {
+        throw new Error("No se pudo obtener la mesa actualizada");
+      }
+
+      return mesaActualizada;
+    } catch (error) {
+      console.error("Error en updateConfirmacion:", error);
+      throw error;
     }
-
-    // Actualizar la confirmación del docente en el array de docentes
-    const docentesActualizados = mesa.docentes.map((docente) =>
-      docente.id === docenteId ? { ...docente, confirmacion } : docente
-    );
-
-    await this.db.from("mesas").update({ docentes: docentesActualizados });
-
-    const updatedMesa = await this.db.from("mesas").select("*");
-    const mesaActualizada = updatedMesa.data?.find((m) => m.id === mesaId);
-    if (!mesaActualizada) {
-      throw new Error("No se encontró la mesa actualizada");
-    }
-    return this.adaptMesaFromDB(mesaActualizada);
   }
 
   async confirmarMesa(mesaId: string): Promise<Mesa> {

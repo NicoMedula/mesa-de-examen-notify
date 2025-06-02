@@ -43,7 +43,7 @@ router.post("/push/subscribe", (req: Request, res: Response): void => {
       "Suscripción registrada correctamente para el docente:",
       docenteId
     );
-    res.status(201).json({ message: "Suscripción registrada correctamente" });
+    res.status(201).json({ success: true, message: "Suscripción registrada correctamente" });
   } catch (error) {
     console.error("Error al registrar suscripción:", error);
     res.status(500).json({ error: "Error al registrar la suscripción" });

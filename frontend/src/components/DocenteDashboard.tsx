@@ -216,25 +216,6 @@ const DocenteDashboard: React.FC = () => {
         `Docente ${docenteId} - Cambiando estado de mesa ${mesaId} a: ${confirmacion}`
       );
 
-      // Actualización optimista - actualiza la UI inmediatamente
-      const actualizarMesas = (mesas: Mesa[]) => 
-        mesas.map(mesa => {
-          if (mesa.id === mesaId) {
-            return {
-              ...mesa,
-              docentes: mesa.docentes.map(docente => 
-                docente.id === docenteId 
-                  ? { ...docente, confirmacion } 
-                  : docente
-              )
-            };
-          }
-          return mesa;
-        });
-
-      setMesas(prevMesas => actualizarMesas(prevMesas));
-      setMesasConfirmadas(prevMesas => actualizarMesas(prevMesas));
-
       // Hacer la llamada a la API
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -265,32 +246,57 @@ const DocenteDashboard: React.FC = () => {
           setError("La petición ha tardado demasiado tiempo. Por favor, inténtelo de nuevo.");
         } else {
           setError(error?.message || "Error al confirmar la mesa");
-          // Revertir la actualización optimista en caso de error
-          await refreshMesas();
         }
+        // Refrescar para asegurar que tenemos el estado correcto
+        await refreshMesas();
       }
     } catch (error: any) {
       console.error("Error al confirmar la mesa:", error);
       setError("Error al confirmar la mesa. Por favor, inténtelo de nuevo.");
-      // Revertir la actualización optimista en caso de error
       await refreshMesas();
     }
   };
 
-  const forzarRegistro = async () => {
-    if (typeof Notification === "undefined") {
-      alert("Las notificaciones push no están soportadas en este navegador.");
-      return;
-    }
+  const registerPush = async () => {
     try {
-      await registerPush();
-      setPermiso(Notification.permission);
-      alert("Intentando registrar la suscripción push...");
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        throw new Error("Las notificaciones push no están soportadas en este navegador");
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        throw new Error("Se requiere permiso para enviar notificaciones");
+      }
+
+      const registration = await navigator.serviceWorker.register("/service-worker.js");
+      console.log("Service Worker registrado:", registration);
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY
+      });
+
+      // Enviar la suscripción al servidor
+      const response = await fetch(`${API_URL}/api/push/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subscription,
+          docenteId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al registrar la suscripción en el servidor");
+      }
+
+      console.log("Suscripción push registrada exitosamente");
+      return true;
     } catch (error) {
       console.error("Error al registrar push:", error);
-      alert(
-        "Error al registrar notificaciones push. Por favor, asegúrate de que Safari tenga permisos para notificaciones."
-      );
+      throw error;
     }
   };
 
@@ -354,7 +360,7 @@ const DocenteDashboard: React.FC = () => {
                 <li>Agrégala a tu pantalla de inicio</li>
                 <li>Haz clic en el botón de abajo</li>
               </ol>
-              <button className="btn btn-warning" onClick={forzarRegistro}>
+              <button className="btn btn-warning" onClick={registerPush}>
                 Habilitar notificaciones push
               </button>
             </div>

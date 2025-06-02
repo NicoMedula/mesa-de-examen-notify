@@ -36,6 +36,13 @@ export async function registerPush() {
     );
     console.log("Service Worker registrado correctamente:", registration);
 
+    // Eliminar suscripción anterior si existe (clave VAPID diferente)
+    const existingSubscription = await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+      console.log("Eliminando suscripción push anterior...");
+      await existingSubscription.unsubscribe();
+    }
+
     // Solicitar permiso para notificaciones
     console.log("Solicitando permiso para notificaciones...");
     const permission = await Notification.requestPermission();
@@ -54,54 +61,10 @@ export async function registerPush() {
       );
     }
 
-    // Usar una clave VAPID directa para evitar problemas de API
-    console.log("Obteniendo clave pública VAPID...");
-
-    // Usar la clave VAPID directamente desde las variables de entorno si está disponible
-    // o usar un valor codificado como fallback para desarrollo
-    const DIRECT_VAPID_KEY =
-      "BPaSiaEDBPZ5-sxFuEeJvaheaqSDwlIRJZqdUVycYeycUBuVVM4LjLFa6YbRL3uaipiTm7ykE2eRbn0dtG7Vdbg";
-
-    let publicKey = DIRECT_VAPID_KEY;
-
-    // Intentar obtener la clave del servidor solo si no tenemos una clave directa
-    if (!DIRECT_VAPID_KEY) {
-      try {
-        console.log(
-          `Intentando obtener clave VAPID de ${API_URL}/api/push/public-key`
-        );
-        const response = await fetch(`${API_URL}/api/push/public-key`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          mode: "cors",
-          cache: "no-cache",
-          credentials: "omit", // Importante para evitar problemas de CORS
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error obteniendo clave VAPID: ${response.status}`);
-        }
-
-        const text = await response.text();
-        console.log("Respuesta del servidor (texto):", text);
-
-        try {
-          const data = JSON.parse(text);
-          publicKey = data.publicKey;
-          console.log("Clave VAPID obtenida del servidor:", publicKey);
-        } catch (parseError) {
-          console.error("Error al parsear respuesta JSON:", parseError);
-          throw new Error("Respuesta inválida del servidor");
-        }
-      } catch (error) {
-        console.error("Error al obtener clave VAPID del servidor:", error);
-        console.log("Usando clave VAPID alternativa para desarrollo");
-      }
-    } else {
-      console.log("Usando clave VAPID directa para desarrollo");
+    // Usar la clave VAPID directamente desde las variables de entorno
+    let publicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      throw new Error("No se encontró la clave pública VAPID en las variables de entorno. Asegúrate de definir REACT_APP_VAPID_PUBLIC_KEY en el archivo .env del frontend y reiniciar el servidor de React.");
     }
 
     console.log("Clave pública VAPID configurada:", publicKey);
@@ -200,9 +163,11 @@ export async function registerPush() {
   }
 }
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+export function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {

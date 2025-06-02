@@ -46,22 +46,78 @@ export class MesaService {
     docenteId: string,
     confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
-    const mesa = await this.mesaRepository.updateConfirmacion(
-      mesaId,
-      docenteId,
-      confirmacion
-    );
-    const docente = mesa.docentes.find((d) => d.id === docenteId);
-
-    if (docente) {
-      const notificacion = NotificacionFactory.crearNotificacionConfirmacion(
-        mesa,
-        docente
+    try {
+      const mesa = await this.mesaRepository.updateConfirmacion(
+        mesaId,
+        docenteId,
+        confirmacion
       );
-      await this.notificacionStrategy.enviar(notificacion);
-    }
 
-    return mesa;
+      // Enviar notificación al docente que realizó la acción
+      const docente = mesa.docentes.find((d) => d.id === docenteId);
+      if (docente) {
+        const notificacion = NotificacionFactory.crearNotificacionConfirmacion(
+          mesa,
+          docente
+        );
+        await this.notificacionStrategy.enviar(notificacion);
+      }
+
+      // Verificar si ambos docentes han aceptado
+      const ambosAceptaron = mesa.docentes.every(
+        (d) => d.confirmacion === "aceptado"
+      );
+      if (ambosAceptaron) {
+        // Notificar a ambos docentes y al departamento
+        const idsDocentes = mesa.docentes.map((d) => d.id);
+        const notificacionDocentes = {
+          ...NotificacionFactory.crearNotificacionActualizacion(
+            mesa,
+            "¡Ambos docentes han aceptado la mesa! El departamento puede confirmarla."
+          ),
+          destinatarios: idsDocentes,
+        };
+        await PushNotificacionStrategy.getInstance().enviar(notificacionDocentes);
+        // Notificar al departamento (puedes personalizar el destinatario si tienes uno)
+        const notificacionDepartamento = {
+          ...NotificacionFactory.crearNotificacionActualizacion(
+            mesa,
+            "Ambos docentes han aceptado la mesa. Puede proceder a confirmarla."
+          ),
+          destinatarios: ["departamento"],
+        };
+        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);
+      }
+
+      // Si un docente rechaza, notificar al otro docente y al departamento
+      if (confirmacion === "rechazado") {
+        const otrosDocentes = mesa.docentes.filter((d) => d.id !== docenteId);
+        for (const otro of otrosDocentes) {
+          const notificacionOtro = {
+            ...NotificacionFactory.crearNotificacionActualizacion(
+              mesa,
+              `${docente?.nombre || "Un docente"} ha rechazado la mesa.`
+            ),
+            destinatarios: [otro.id],
+          };
+          await PushNotificacionStrategy.getInstance().enviar(notificacionOtro);
+        }
+        // Notificar al departamento
+        const notificacionDepartamento = {
+          ...NotificacionFactory.crearNotificacionActualizacion(
+            mesa,
+            `${docente?.nombre || "Un docente"} ha rechazado la mesa. El departamento debe reasignar o cancelar.`
+          ),
+          destinatarios: ["departamento"],
+        };
+        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);
+      }
+
+      return mesa;
+    } catch (error) {
+      console.error("Error en confirmarMesa:", error);
+      throw error;
+    }
   }
 
   public async enviarRecordatorio(mesaId: string): Promise<void> {
