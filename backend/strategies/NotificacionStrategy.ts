@@ -1,5 +1,7 @@
 import { Notificacion } from "../factories/NotificacionFactory";
 import webpush from "web-push";
+import { NotificacionService } from "../services/NotificacionService";
+import { NotificacionRepository } from "../repositories/NotificacionRepository";
 
 // Patrón Strategy: Permite cambiar la forma de enviar notificaciones
 export interface NotificacionStrategy {
@@ -47,10 +49,18 @@ export class ConsoleNotificacionStrategy implements NotificacionStrategy {
 
 export class PushNotificacionStrategy implements NotificacionStrategy {
   private static instance: PushNotificacionStrategy;
-  // Ahora es un diccionario de arrays de suscripciones por docenteId
-  private subscriptions: { [docenteId: string]: any[] } = {};
+  private notificacionService: NotificacionService;
+  private notificacionRepository: NotificacionRepository;
+  // Mantenemos un caché en memoria para evitar consultas repetidas a la BD
+  private cache: { [docenteId: string]: any[] } = {};
+  private cacheValidUntil: Date = new Date();
 
-  private constructor() {}
+  private constructor() {
+    this.notificacionService = new NotificacionService();
+    this.notificacionRepository = NotificacionRepository.getInstance();
+    // Caché válida por 5 minutos
+    this.cacheValidUntil = new Date(Date.now() + 5 * 60 * 1000);
+  }
 
   public static getInstance(): PushNotificacionStrategy {
     if (!PushNotificacionStrategy.instance) {
@@ -59,60 +69,128 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
     return PushNotificacionStrategy.instance;
   }
 
-  // Recibe { docenteId, subscription }
-  public addSubscription({
+  // Añade suscripción tanto en memoria como en BD
+  public async addSubscription({
     docenteId,
     subscription,
   }: {
     docenteId: string;
     subscription: any;
   }) {
-    if (!docenteId || !subscription) return;
-    if (!this.subscriptions[docenteId]) {
-      this.subscriptions[docenteId] = [];
-    }
-    // Evitar duplicados (por endpoint)
-    const exists = this.subscriptions[docenteId].some(
-      (sub) => sub.endpoint === subscription.endpoint
-    );
-    if (!exists) {
-      this.subscriptions[docenteId].push(subscription);
+    try {
+      if (!docenteId || !subscription) return;
+      
+      // Guardar en BD usando el repositorio
+      await this.notificacionRepository.guardarSuscripcion(docenteId, subscription);
+      
+      // Actualizar la caché en memoria
+      if (!this.cache[docenteId]) {
+        this.cache[docenteId] = [];
+      }
+      
+      // Evitar duplicados en caché (por endpoint)
+      const exists = this.cache[docenteId].some(
+        (sub) => sub.endpoint === subscription.endpoint
+      );
+      
+      if (!exists) {
+        this.cache[docenteId].push(subscription);
+      }
+      
+      console.log(`Suscripción guardada para docente ${docenteId}`);
+    } catch (error) {
+      console.error("Error al guardar suscripción:", error);
     }
   }
 
-  // Enviar solo a los docentes indicados, a todos sus dispositivos
+  // Obtiene todas las suscripciones de un docente desde la BD
+  private async getSuscripcionesByDocente(docenteId: string): Promise<any[]> {
+    try {
+      // Verificar si el caché es válido
+      const now = new Date();
+      if (now > this.cacheValidUntil || !this.cache[docenteId]) {
+        // Caché inválido, recargar desde BD
+        const suscripciones = await this.notificacionRepository.obtenerSuscripcionesByDocente(docenteId);
+        this.cache[docenteId] = suscripciones.map((item: { subscription: any }) => item.subscription);
+        
+        // Renovar validez del caché
+        this.cacheValidUntil = new Date(Date.now() + 5 * 60 * 1000);
+      }
+      
+      return this.cache[docenteId] || [];
+    } catch (error) {
+      console.error(`Error al obtener suscripciones para docente ${docenteId}:`, error);
+      return [];
+    }
+  }
+
+  // Enviar notificaciones usando el nuevo servicio
   public async enviar(
     notificacion: Notificacion & { destinatarios?: string[] }
   ) {
-    const destinatarios =
-      notificacion.destinatarios || Object.keys(this.subscriptions);
-    let total = 0;
-    for (const docenteId of destinatarios) {
-      const subs = this.subscriptions[docenteId] || [];
-      for (const sub of subs) {
-        try {
-          // Buscar el nombre del docente en la notificación (si está en el mensaje)
-          let nombreDocente = "";
-          const match = notificacion.mensaje.match(/^(.*?),/);
-          if (match && match[1]) {
-            nombreDocente = match[1];
-          } else {
-            nombreDocente = "Docente";
+    try {
+      const destinatarios = notificacion.destinatarios || [];
+      
+      // Si no hay destinatarios específicos, obtener todos los docentes con suscripciones
+      if (destinatarios.length === 0) {
+        const todosDocentes = await this.notificacionRepository.obtenerTodosDocentesConSuscripciones();
+        destinatarios.push(...todosDocentes);
+      }
+      
+      console.log(`Enviando notificación a ${destinatarios.length} destinatarios`);
+      
+      let total = 0;
+      for (const docenteId of destinatarios) {
+        // Obtener suscripciones desde BD para cada docente
+        const suscripciones = await this.getSuscripcionesByDocente(docenteId);
+        console.log(`Docente ${docenteId} tiene ${suscripciones.length} suscripciones`);
+        
+        for (const subscription of suscripciones) {
+          try {
+            // Extraer nombre del docente del mensaje si está disponible
+            let nombreDocente = "";
+            const match = notificacion.mensaje.match(/^(.*?),/);
+            if (match && match[1]) {
+              nombreDocente = match[1];
+            } else {
+              nombreDocente = "Docente";
+            }
+            
+            const payload = {
+              title: `Notificación de Mesa para ${nombreDocente}`,
+              body: notificacion.mensaje,
+              docenteId,
+              url: "/",
+              icon: "/logo192.png", // Ícono para la notificación
+              badge: "/logo192.png", // Badge para dispositivos móviles
+              timestamp: Date.now() // Para ordenar notificaciones
+            };
+            
+            console.log(`Enviando notificación push a ${docenteId}`);
+            await webpush.sendNotification(subscription, JSON.stringify(payload));
+            total++;
+          } catch (error: any) {
+            console.error(`Error enviando notificación a ${docenteId}:`, error);
+            
+            // Si la suscripción ya no es válida (error 410), eliminarla
+            if (error.statusCode === 410) {
+              console.log(`Eliminando suscripción inválida para ${docenteId}`);
+              await this.notificacionRepository.eliminarSuscripcion(docenteId, subscription.endpoint);
+              
+              // Actualizar caché
+              if (this.cache[docenteId]) {
+                this.cache[docenteId] = this.cache[docenteId].filter(
+                  sub => sub.endpoint !== subscription.endpoint
+                );
+              }
+            }
           }
-          const payload = {
-            title: `Notificación de Mesa para ${nombreDocente}`,
-            body: notificacion.mensaje,
-            docenteId,
-            url: "/",
-          };
-          console.log("Payload enviado a webpush:", payload);
-          await webpush.sendNotification(sub, JSON.stringify(payload));
-          total++;
-        } catch (err) {
-          console.error("Error enviando push a", docenteId, err);
         }
       }
+      
+      console.log(`Enviadas ${total} notificaciones push`);
+    } catch (error) {
+      console.error("Error general al enviar notificaciones push:", error);
     }
-    console.log("Enviadas", total, "notificaciones push a docentes.");
   }
 }

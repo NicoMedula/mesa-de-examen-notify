@@ -6,11 +6,12 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import path from "path";
-import mesaRoutes from "./routes/mesaRoutes";
+import routes from "./routes/index";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
 import { supabase } from "./config/supabase";
 import { AuthController } from "./controllers/AuthController";
-import pushRoutes from "./routes/index";
+// Importar configuración de webpush
+import "./config/webPush";
 
 const app = express();
 const httpServer = createServer(app);
@@ -75,8 +76,7 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Rutas de API
-app.use("/api", mesaRoutes);
-app.use("/api", pushRoutes);
+app.use("/", routes);
 
 // Rutas de autenticación y login
 app.post("/api/reset-password", AuthController.requestPasswordReset);
