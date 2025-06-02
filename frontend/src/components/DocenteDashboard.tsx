@@ -23,6 +23,7 @@ const DocenteDashboard: React.FC = () => {
   const [docenteNombre, setDocenteNombre] = useState<string>("");
   const [docenteId, setDocenteId] = useState<string>("");
   const [activeTab, setActiveTab] = useState("pendientes");
+  // Eliminamos el sistema de confirmaciones recientes para siempre usar datos de la BD
 
   const navigate = useNavigate();
 
@@ -187,14 +188,16 @@ const DocenteDashboard: React.FC = () => {
 
     fetchDocenteInfo();
 
+    // Mantenemos un intervalo de refresco corto para detectar cambios rápidamente
     const intervalId = setInterval(() => {
       if (storedDocenteId) {
         refreshMesas(storedDocenteId);
       }
-    }, 10000);
+    }, 5000); // Cada 5 segundos para estar siempre actualizado
 
     return () => clearInterval(intervalId);
   }, [API_URL, refreshMesas]);
+
 
   const handleConfirm = async (
     mesaId: string,
@@ -202,20 +205,29 @@ const DocenteDashboard: React.FC = () => {
   ) => {
     try {
       setError(null);
+      // Mostrar estado de loading durante la operación
+      setLoading(true);
+      
       console.log(
-        `Docente ${docenteId} - Cambiando estado de mesa ${mesaId} a: ${confirmacion}`
+        `[handleConfirm] Docente ${docenteId} - Cambiando estado de mesa ${mesaId} a: ${confirmacion}`
       );
 
       // Hacer la llamada a la API
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Aumentamos a 15 segundos
 
       try {
+        console.log(`[handleConfirm] Enviando confirmación al backend para mesa ${mesaId}...`);
+        
         const res = await fetch(
           `${API_URL}/api/mesa/${mesaId}/docente/${docenteId}/confirmar`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache"
+            },
             body: JSON.stringify({ confirmacion }),
             signal: controller.signal,
           }
@@ -223,27 +235,51 @@ const DocenteDashboard: React.FC = () => {
 
         clearTimeout(timeoutId);
 
+        // Obtener la respuesta JSON una sola vez para evitar errores de "body already consumed"
+        const responseData = await res.json();
+
         if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || "Error al confirmar la mesa");
+          throw new Error(responseData.message || "Error al confirmar la mesa");
         }
 
-        // Refrescar desde el servidor para asegurar consistencia
+        // Usar los datos ya extraídos de la respuesta
+        console.log(`[handleConfirm] Confirmación exitosa para mesa ${mesaId}:`, responseData);
+        
+        // Esperar un tiempo antes de refrescar para asegurar que la BD se actualice completamente
+        console.log(`[handleConfirm] Esperando 2 segundos antes de refrescar datos...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Hacer dos refrescos para asegurar consistencia: uno inmediato y otro después de un breve delay
+        console.log(`[handleConfirm] Primer refresco de datos desde el servidor...`);
         await refreshMesas();
+        
+        // Segundo refresco después de un pequeño delay adicional para asegurar que los datos estén actualizados
+        console.log(`[handleConfirm] Esperando 3 segundos más para refresco final...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log(`[handleConfirm] Refresco final de datos...`);
+        await refreshMesas();
+        
+        console.log(`[handleConfirm] Proceso de confirmación completado para mesa ${mesaId}`);
         
       } catch (error: any) {
         if (error?.name === "AbortError") {
+          console.error(`[handleConfirm] Timeout al confirmar mesa ${mesaId}:`, error);
           setError("La petición ha tardado demasiado tiempo. Por favor, inténtelo de nuevo.");
         } else {
+          console.error(`[handleConfirm] Error al confirmar mesa ${mesaId}:`, error);
           setError(error?.message || "Error al confirmar la mesa");
         }
         // Refrescar para asegurar que tenemos el estado correcto
         await refreshMesas();
       }
     } catch (error: any) {
-      console.error("Error al confirmar la mesa:", error);
+      console.error("[handleConfirm] Error general al confirmar la mesa:", error);
       setError("Error al confirmar la mesa. Por favor, inténtelo de nuevo.");
+
       await refreshMesas();
+    } finally {
+      // Asegurarse de que el estado de loading se desactive
+      setLoading(false);
     }
   };
 
@@ -398,7 +434,7 @@ const DocenteDashboard: React.FC = () => {
                                         Rechazado
                                       </span>
                                     )}
-                                    {docente.confirmacion === "pendiente" && (
+                                    {(docente.confirmacion === "pendiente" || !docente.confirmacion) && (
                                       <span className="badge bg-warning">
                                         Pendiente
                                       </span>
@@ -409,54 +445,37 @@ const DocenteDashboard: React.FC = () => {
                                     {mesa.estado !== "confirmada" ? (
                                       <div className="d-flex flex-column flex-sm-row gap-2">
                                         <button
-                                          className="btn btn-success btn-sm"
+                                          className={`btn ${docente.confirmacion === "aceptado" ? "btn-success" : "btn-outline-success"} btn-sm`}
                                           onClick={() =>
                                             handleConfirm(mesa.id, "aceptado")
                                           }
-                                          disabled={
-                                            docente.confirmacion ===
-                                              "aceptado" &&
-                                            [
-                                              "confirmada",
-                                              "cancelada",
-                                            ].includes(mesa.estado || "")
-                                          }
+                                          disabled={[
+                                            "confirmada",
+                                            "cancelada",
+                                          ].includes(mesa.estado || "")}
                                         >
-                                          {docente.confirmacion ===
-                                            "aceptado" &&
-                                          ["confirmada", "cancelada"].includes(
-                                            mesa.estado || ""
-                                          )
-                                            ? "Aceptado"
-                                            : "Aceptar"}
+                                          Aceptar
                                         </button>
                                         <button
-                                          className="btn btn-danger btn-sm"
+                                          className={`btn ${docente.confirmacion === "rechazado" ? "btn-danger" : "btn-outline-danger"} btn-sm`}
                                           onClick={() =>
                                             handleConfirm(mesa.id, "rechazado")
                                           }
-                                          disabled={
-                                            docente.confirmacion ===
-                                              "rechazado" &&
-                                            [
-                                              "confirmada",
-                                              "cancelada",
-                                            ].includes(mesa.estado || "")
-                                          }
+                                          disabled={[
+                                            "confirmada",
+                                            "cancelada",
+                                          ].includes(mesa.estado || "")}
                                         >
-                                          {docente.confirmacion ===
-                                            "rechazado" &&
-                                          ["confirmada", "cancelada"].includes(
-                                            mesa.estado || ""
-                                          )
-                                            ? "Rechazado"
-                                            : "Rechazar"}
+                                          Rechazar
                                         </button>
                                       </div>
                                     ) : (
-                                      <span className="badge bg-success">
-                                        Mesa confirmada
-                                      </span>
+                                      <div className="d-flex flex-column flex-sm-row gap-2">
+                                        <span className={`badge ${docente.confirmacion === "aceptado" ? "bg-success" : docente.confirmacion === "rechazado" ? "bg-danger" : "bg-warning"}`}>
+                                          {docente.confirmacion === "aceptado" ? "Aceptado" : 
+                                           docente.confirmacion === "rechazado" ? "Rechazado" : "Pendiente"}
+                                        </span>
+                                      </div>
                                     )}
                                   </td>
                                 </tr>

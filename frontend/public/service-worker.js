@@ -1,5 +1,5 @@
 // Versión del Service Worker - incrementar cuando se actualice
-const SW_VERSION = '1.2.0';
+const SW_VERSION = '1.3.0';
 
 // Imprimir información del service worker para facilitar depuración
 console.log('[Service Worker] Iniciando Service Worker v' + SW_VERSION);
@@ -20,17 +20,26 @@ self.addEventListener('activate', (event) => {
 
 // Evento para manejar notificaciones push
 self.addEventListener('push', function(event) {
-  console.log('[Service Worker] Notificación push recibida');
+  console.log('[Service Worker] Notificación push recibida', event);
   
   let data;
   try {
-    data = event.data ? event.data.json() : {};
-    console.log('[Service Worker] Datos de notificación:', data);
+    if (event.data) {
+      // Intentar parsear como JSON
+      const text = event.data.text();
+      console.log('[Service Worker] Datos brutos de notificación:', text);
+      data = JSON.parse(text);
+      console.log('[Service Worker] Datos de notificación parseados:', data);
+    } else {
+      console.warn('[Service Worker] No hay datos en el evento push');
+      data = {};
+    }
   } catch (e) {
     console.error('[Service Worker] Error al parsear datos de la notificación:', e);
-    data = {};
+    data = { title: 'Nueva notificación', body: 'No se pudieron procesar los detalles.' };
   }
   
+  // Asegurarse de que todos los campos necesarios estén presentes
   const title = data.title || 'Nueva notificación';
   const options = {
     body: data.body || 'Tienes una nueva notificación.',
@@ -38,15 +47,41 @@ self.addEventListener('push', function(event) {
     badge: '/favicon.ico',
     tag: data.tag || 'default-tag',
     data: data.url || '/',
-    actions: data.actions || [],
     requireInteraction: true,
-    vibrate: [200, 100, 200]
+    vibrate: [200, 100, 200],
+    // Añadir un timestamp único para evitar que el navegador agrupe notificaciones similares
+    timestamp: Date.now()
   };
   
+  console.log('[Service Worker] Mostrando notificación con título:', title, 'y opciones:', options);
+  
   event.waitUntil(
+    // Promesa para mostrar la notificación
     self.registration.showNotification(title, options)
-    .then(() => console.log('[Service Worker] Notificación mostrada correctamente'))
-    .catch(error => console.error('[Service Worker] Error al mostrar notificación:', error))
+    .then(() => {
+      console.log('[Service Worker] Notificación mostrada correctamente');
+      // Enviar un mensaje a todas las ventanas de clientes para registrar el éxito
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'NOTIFICATION_SHOWN',
+            title: title,
+            timestamp: Date.now()
+          });
+        });
+      });
+    })
+    .catch(error => {
+      console.error('[Service Worker] Error al mostrar notificación:', error);
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'NOTIFICATION_ERROR',
+            error: error.message
+          });
+        });
+      });
+    })
   );
 });
 

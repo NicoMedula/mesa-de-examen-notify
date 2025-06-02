@@ -21,7 +21,8 @@ export class MesaService {
   private constructor() {
     this.mesaRepository = MesaRepository.getInstance();
     // Inicialmente se asigna una estrategia por defecto, pero esto puede cambiarse más adelante
-    this.notificacionStrategy = WebSocketNotificacionStrategy.getInstance();
+    // Usamos PushNotificacionStrategy como estrategia predeterminada para asegurar que las notificaciones funcionen
+    this.notificacionStrategy = PushNotificacionStrategy.getInstance();
   }
 
   public static getInstance(): MesaService {
@@ -41,17 +42,23 @@ export class MesaService {
     return this.mesaRepository.getMesasByDocenteId(docenteId);
   }
 
+  /**
+   * Confirma la mesa para un docente y envía notificación push si corresponde.
+   * No usa valores predeterminados ni arrays hardcodeados.
+   */
   public async confirmarMesa(
     mesaId: string,
     docenteId: string,
     confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
+
     try {
       const mesa = await this.mesaRepository.updateConfirmacion(
         mesaId,
         docenteId,
         confirmacion
       );
+
 
       // Enviar notificación al docente que realizó la acción
       const docente = mesa.docentes.find((d) => d.id === docenteId);
@@ -156,7 +163,10 @@ export class MesaService {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
+    console.log('[updateMesa] Actualizando mesa', mesaId, 'con datos:', mesaActualizada);
     const mesa = await this.mesaRepository.updateMesa(mesaId, mesaActualizada);
+    console.log('[updateMesa] Mesa después de actualizar en BD:', mesa);
+    
     // Notificación push para confirmación o cancelación SOLO a docentes asignados
     let mensaje = "";
     if (mesaActualizada.estado === "confirmada") {
@@ -181,9 +191,11 @@ export class MesaService {
           docenteId: docente.id,
           url: "/",
         };
-        console.log("Payload enviado a webpush (updateMesa):", payload);
+        console.log("[updateMesa] Payload enviado a webpush:", payload);
         await PushNotificacionStrategy.getInstance().enviar(notificacion);
       }
+    } else {
+      console.log('[updateMesa] No se envió notificación push porque el estado no es confirmada ni pendiente.');
     }
     return mesa;
   }
@@ -194,5 +206,29 @@ export class MesaService {
 
   public async getAllMesas(): Promise<Mesa[]> {
     return this.mesaRepository.getAllMesas();
+  }
+
+  /**
+   * Obtiene una mesa específica por su ID
+   * @param mesaId ID de la mesa a obtener
+   * @returns La mesa encontrada o null si no existe
+   */
+  public async getMesaById(mesaId: string): Promise<Mesa | null> {
+    try {
+      console.log(`[MesaService.getMesaById] Obteniendo mesa con ID ${mesaId}`);
+      const mesas = await this.getAllMesas();
+      const mesa = mesas.find(m => m.id === mesaId);
+      
+      if (!mesa) {
+        console.log(`[MesaService.getMesaById] No se encontró la mesa con ID ${mesaId}`);
+        return null;
+      }
+      
+      console.log(`[MesaService.getMesaById] Mesa encontrada: ${JSON.stringify(mesa, null, 2)}`);
+      return mesa;
+    } catch (error) {
+      console.error(`[MesaService.getMesaById] Error al obtener mesa ${mesaId}:`, error);
+      throw error;
+    }
   }
 }

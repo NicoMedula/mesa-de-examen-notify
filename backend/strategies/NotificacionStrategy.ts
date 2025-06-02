@@ -2,6 +2,7 @@ import { Notificacion } from "../factories/NotificacionFactory";
 import webpush from "web-push";
 import { supabase } from "../config/supabase";
 
+
 // Patrón Strategy: Permite cambiar la forma de enviar notificaciones
 export interface NotificacionStrategy {
   enviar(notificacion: Notificacion): Promise<void>;
@@ -51,7 +52,13 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
   // Diccionario de arrays de suscripciones por docenteId (solo en memoria)
   private subscriptions: { [docenteId: string]: any[] } = {};
 
-  private constructor() {}
+
+  private constructor() {
+    this.notificacionService = new NotificacionService();
+    this.notificacionRepository = NotificacionRepository.getInstance();
+    // Caché válida por 5 minutos
+    this.cacheValidUntil = new Date(Date.now() + 5 * 60 * 1000);
+  }
 
   public static getInstance(): PushNotificacionStrategy {
     if (!PushNotificacionStrategy.instance) {
@@ -138,10 +145,16 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
           if (err.statusCode === 410 || err.statusCode === 404) {
             console.log("[webpush] Eliminando suscripción push inválida para", docenteId, sub.endpoint);
             await this.removeSubscription(docenteId, sub.endpoint);
+
           }
         }
       }
+      
+      console.log(`Enviadas ${total} notificaciones push`);
+    } catch (error) {
+      console.error("Error general al enviar notificaciones push:", error);
     }
     console.log("[webpush] Enviadas", total, "notificaciones push a docentes. Errores:", errores);
+
   }
 }

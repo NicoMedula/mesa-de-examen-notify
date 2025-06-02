@@ -1,3 +1,4 @@
+
 import express, { Request, Response } from "express";
 const router = express.Router();
 import webpush from "web-push";
@@ -94,10 +95,9 @@ router.post("/push/cleanup", async (req: Request, res: Response): Promise<void> 
 });
 
 // Ruta para probar si la API es accesible (para diagnóstico)
-router.get("/push/status", (req: Request, res: Response): void => {
+router.get("/api/status", (req, res) => {
   res.json({
     status: "online",
-    vapidPublicKeyAvailable: !!VAPID_PUBLIC_KEY,
     timestamp: new Date().toISOString(),
   });
 });

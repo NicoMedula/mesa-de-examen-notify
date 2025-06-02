@@ -1,14 +1,17 @@
 import { Request, Response } from "express";
 import { MesaService } from "../services/MesaService";
 import { v4 as uuidv4 } from "uuid";
+import { NotificacionService } from "../services/NotificacionService";
 
 // Patrón Singleton: Única instancia de MesaController
 export class MesaController {
   private static instance: MesaController;
   private mesaService: MesaService;
+  private notificacionService: NotificacionService;
 
   private constructor() {
     this.mesaService = MesaService.getInstance();
+    this.notificacionService = new NotificacionService();
   }
 
   public static getInstance(): MesaController {
@@ -61,6 +64,20 @@ export class MesaController {
     }
   }
 
+  /**
+   * Obtiene todas las mesas de examen
+   */
+  public async getAllMesas(req: Request, res: Response): Promise<void> {
+    try {
+      const mesas = await this.mesaService.getAllMesas();
+      console.log(`Obtenidas ${mesas.length} mesas en total`);
+      res.json(mesas);
+    } catch (error) {
+      console.error("Error en getAllMesas:", error);
+      res.status(500).json({ error: "Error al obtener las mesas" });
+    }
+  }
+
   public async confirmarMesa(req: Request, res: Response): Promise<void> {
     try {
       const { mesaId, docenteId } = req.params;
@@ -84,6 +101,15 @@ export class MesaController {
         );
 
         console.log(`Confirmación exitosa para mesa ${mesaId}`);
+        
+        // Enviar notificaciones a los docentes involucrados
+        try {
+          await this.enviarNotificacionConfirmacion(mesa, docenteId, confirmacion);
+        } catch (notifError) {
+          console.error('Error al enviar notificación de confirmación:', notifError);
+          // No bloqueamos el flujo principal si falla la notificación
+        }
+        
         res.json(mesa);
       } catch (serviceError: any) {
         // Capturar errores específicos del servicio y enviar una respuesta adecuada
@@ -247,13 +273,63 @@ export class MesaController {
   }
 
   private async getNombreDocente(id: string): Promise<string> {
-    // Busca el nombre del docente en la tabla profiles
-    const { data, error } = await require("../config/supabase")
-      .supabase.from("profiles")
-      .select("nombre")
-      .eq("id", id)
-      .single();
-    return data?.nombre || "";
+    try {
+      // Busca el nombre del docente en la tabla profiles
+      const { data, error } = await require("../config/supabase")
+        .supabase.from("profiles")
+        .select("nombre")
+        .eq("id", id)
+        .single();
+      return data?.nombre || "";
+    } catch (error) {
+      console.error(`Error al obtener nombre del docente ${id}:`, error);
+      return `Docente ${id.substring(0, 4)}`;
+    }
+  }
+  
+  /**
+   * Envía notificaciones push cuando se confirma una mesa de examen
+   */
+  private async enviarNotificacionConfirmacion(mesa: any, docenteId: string, confirmacion: string): Promise<void> {
+    try {
+      // Obtener información de la mesa para la notificación
+      const materiaStr = mesa.materia || 'Sin especificar';
+      const fechaStr = mesa.fecha || 'Sin fecha';
+      const estadoStr = confirmacion === 'aceptado' ? 'aceptada' : 
+                      confirmacion === 'rechazado' ? 'rechazada' : 'pendiente';
+      
+      // Preparar el mensaje para la notificación
+      const notificacionPayload = {
+        title: `Mesa de examen ${estadoStr}`,
+        body: `La mesa de ${materiaStr} (${fechaStr}) ha sido ${estadoStr} por un docente.`,
+        tag: `mesa-${mesa.id}`,
+        icon: '/favicon.ico',
+        url: '/docente-dashboard',
+        requireInteraction: true
+      };
+      
+      console.log(`Enviando notificación de confirmación para mesa ${mesa.id} (${estadoStr})`);
+      
+      // Enviar a todos los docentes involucrados excepto al que hizo la confirmación
+      const docentesIds = mesa.docentes
+        .map((d: any) => d.id)
+        .filter((id: string) => id !== docenteId); // Excluir al docente que confirmó
+      
+      // Si hay otros docentes, enviarles notificación
+      if (docentesIds.length > 0) {
+        for (const id of docentesIds) {
+          try {
+            await this.notificacionService.enviarNotificacionADocente(id, notificacionPayload);
+            console.log(`Notificación enviada a docente ${id}`);
+          } catch (error) {
+            console.error(`Error al enviar notificación a docente ${id}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error en enviarNotificacionConfirmacion:', error);
+      throw error;
+    }
   }
 
   public async updateMesa(req: Request, res: Response): Promise<void> {
@@ -279,13 +355,13 @@ export class MesaController {
         return;
       }
 
-      // Si se enviu00f3 un array de docentes (caso de cancelaciu00f3n), usarlo direcamente
+      // Si se envió un array de docentes (caso de cancelación), usarlo direcamente
       let nuevosDocentes;
       if (docentes && Array.isArray(docentes)) {
         console.log("Usando docentes enviados desde frontend:", docentes);
         nuevosDocentes = docentes;
       } else if (docente_titular && docente_vocal) {
-        // Caso: actualizaciu00f3n normal de la mesa con nuevos docentes
+        // Caso: actualización normal de la mesa con nuevos docentes
         console.log("Creando nuevos docentes a partir de titular/vocal");
         nuevosDocentes = [
           {
@@ -327,24 +403,71 @@ export class MesaController {
     }
   }
 
-  public async deleteMesa(req: Request, res: Response): Promise<void> {
+  /**
+   * Endpoint especial para forzar la confirmación directa de una mesa completa desde el departamento
+   * @param req Request con el ID de la mesa
+   * @param res Response
+   */
+  public async confirmarMesaDirecto(req: Request, res: Response): Promise<void> {
     try {
       const { mesaId } = req.params;
-      await this.mesaService.deleteMesa(mesaId);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error en deleteMesa:", error);
-      res.status(500).json({ error: "Error al eliminar la mesa" });
-    }
-  }
+      
+      console.log(`[confirmarMesaDirecto] Forzando confirmación directa de mesa ${mesaId}`);
 
-  public async getAllMesas(req: Request, res: Response): Promise<void> {
-    try {
-      const mesas = await this.mesaService.getAllMesas();
-      res.json(mesas);
-    } catch (error) {
-      console.error("Error en getAllMesas:", error);
-      res.status(500).json({ error: "Error al obtener las mesas" });
+      if (!mesaId) {
+        res.status(400).json({
+          error: "Datos incompletos",
+          detalle: "Se requiere el ID de la mesa",
+        });
+        return;
+      }
+
+      // 1. Obtener la mesa actual
+      const mesa = await this.mesaService.getMesaById(mesaId);
+      if (!mesa) {
+        console.error(`[confirmarMesaDirecto] Mesa ${mesaId} no encontrada`);
+        res.status(404).json({ error: "Mesa no encontrada" });
+        return;
+      }
+      
+      console.log(`[confirmarMesaDirecto] Mesa encontrada: ${JSON.stringify(mesa, null, 2)}`);
+      
+      // 2. Actualizar el estado de la mesa a "confirmada"
+      // y todas las confirmaciones de docentes a "aceptado"
+      const docentesActualizados = mesa.docentes.map(d => ({
+        ...d,
+        confirmacion: "aceptado" as import("../types").EstadoConfirmacion
+      }));
+      
+      const mesaActualizada = await this.mesaService.updateMesa(mesaId, {
+        ...mesa,
+        estado: "confirmada",
+        docentes: docentesActualizados
+      });
+      
+      console.log(`[confirmarMesaDirecto] Mesa actualizada con éxito: ${JSON.stringify(mesaActualizada, null, 2)}`);
+      
+      // Enviar notificaciones a todos los docentes
+      try {
+        for (const docente of docentesActualizados) {
+          await this.enviarNotificacionConfirmacion(
+            mesaActualizada, 
+            'departamento', // Indicar que fue confirmado por el departamento
+            'aceptado'
+          );
+        }
+      } catch (notifError) {
+        console.error('[confirmarMesaDirecto] Error al enviar notificaciones:', notifError);
+        // No bloqueamos el flujo principal si falla la notificación
+      }
+      
+      res.status(200).json(mesaActualizada);
+    } catch (error: any) {
+      console.error("[confirmarMesaDirecto] Error:", error);
+      res.status(500).json({
+        error: "Error al confirmar la mesa directamente",
+        detalle: error?.message || "Error desconocido",
+      });
     }
   }
 }

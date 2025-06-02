@@ -3,21 +3,19 @@ import { Mesa } from "../types";
 // Interfaz para el cliente de base de datos
 export interface DatabaseClient {
   from: (table: string) => {
-    select: (columns?: string) => Promise<{ data: any[] | null; error: any }>;
+    select: (columns?: string) => {
+      eq: (column: string, value: any) => {
+        single: () => Promise<{ data: any | null; error: any }>;
+      } & Promise<{ data: any[] | null; error: any }>;
+    } & Promise<{ data: any[] | null; error: any }>;
     insert: (data: any) => {
-      select: () => Promise<{ data: any[] | null; error: any }>;
+      select: (columns?: string) => Promise<{ data: any[] | null; error: any }>;
     };
     update: (data: any) => {
-      eq: (
-        column: string,
-        value: any
-      ) => Promise<{ data: any[] | null; error: any }>;
+      eq: (column: string, value: any) => Promise<{ data: any[] | null; error: any }>;
     };
     delete: () => {
-      eq: (
-        column: string,
-        value: any
-      ) => Promise<{ data: any[] | null; error: any }>;
+      eq: (column: string, value: any) => Promise<{ data: any[] | null; error: any }>;
     };
   };
 }
@@ -222,6 +220,7 @@ export class MesaRepository {
     mesaId: string,
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
+
     // Actualiza solo la mesa con el id indicado
     const { error } = await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada)).eq("id", mesaId);
     if (error) {
@@ -233,6 +232,7 @@ export class MesaRepository {
       throw new Error("No se encontró la mesa actualizada");
     }
     return mesa;
+=
   }
 
   public async deleteMesa(mesaId: string): Promise<void> {
@@ -247,6 +247,7 @@ export class MesaRepository {
     confirmacion: import("../types").EstadoConfirmacion
   ): Promise<Mesa> {
     try {
+
       // Primero obtenemos la mesa actual
       const mesa = await this.getMesaById(mesaId);
       if (!mesa) {
@@ -284,18 +285,38 @@ export class MesaRepository {
       return mesaActualizada;
     } catch (error) {
       console.error("Error en updateConfirmacion:", error);
+
       throw error;
     }
   }
 
   async confirmarMesa(mesaId: string): Promise<Mesa> {
-    await this.db.from("mesas").update({ estado: "confirmada" });
-
-    const updatedMesa = await this.db.from("mesas").select("*");
-    const mesa = updatedMesa.data?.find((m) => m.id === mesaId);
-    if (!mesa) {
-      throw new Error("No se encontró la mesa actualizada");
+    console.log(`Confirmando mesa con ID ${mesaId}`);
+    
+    // CORREGIDO: Agregar .eq("id", mesaId) para actualizar SOLO la mesa específica
+    const updateResult = await this.db
+      .from("mesas")
+      .update({ estado: "confirmada" })
+      .eq("id", mesaId);
+    
+    if (updateResult.error) {
+      console.error(`Error al confirmar mesa ${mesaId}:`, updateResult.error);
+      throw new Error(`Error al confirmar mesa: ${updateResult.error.message}`);
     }
+
+    // CORREGIDO: Obtener sólo la mesa específica actualizada
+    const result = await this.db
+      .from("mesas")
+      .select("*")
+      .eq("id", mesaId);
+    
+    if (!result.data || result.data.length === 0) {
+      console.error(`No se encontró la mesa ${mesaId} después de confirmarla`);
+      throw new Error(`No se encontró la mesa confirmada con ID ${mesaId}`);
+    }
+    
+    const mesa = result.data[0];
+    console.log(`Mesa ${mesaId} confirmada correctamente:`, mesa);
     return this.adaptMesaFromDB(mesa);
   }
 

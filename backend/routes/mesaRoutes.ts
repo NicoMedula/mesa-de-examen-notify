@@ -28,6 +28,11 @@ router.post("/mesa/:mesaId/docente/:docenteId/confirmar", (req, res) =>
   mesaController.confirmarMesa(req, res)
 );
 
+// Ruta para confirmar directamente una mesa desde el departamento
+router.post("/mesa/:mesaId/confirmar", (req, res) =>
+  mesaController.confirmarMesaDirecto(req, res)
+);
+
 router.post("/mesa/:mesaId/recordatorio", (req, res) =>
   mesaController.enviarRecordatorio(req, res)
 );

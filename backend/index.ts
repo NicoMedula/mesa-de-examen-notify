@@ -6,11 +6,12 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import path from "path";
-import mesaRoutes from "./routes/mesaRoutes";
+import routes from "./routes/index";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
 import { supabase } from "./config/supabase";
 import { AuthController } from "./controllers/AuthController";
-import pushRoutes from "./routes/index";
+// Importar configuración de webpush
+import "./config/webPush";
 
 const app = express();
 const httpServer = createServer(app);
@@ -25,7 +26,7 @@ const io = new Server(httpServer, {
 // Configuración de CORS mejorada
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3003", /\.vercel\.app$/],
+    origin: ["http://localhost:3000", "http://localhost:3003", "http://localhost:3005", /\.vercel\.app$/],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Origin",
@@ -33,10 +34,21 @@ app.use(
       "Content-Type",
       "Accept",
       "Authorization",
+      "Cache-Control",
+      "Pragma",
     ],
+    exposedHeaders: ["Content-Length", "Content-Type", "Cache-Control", "Pragma"],
     credentials: true,
   })
 );
+
+// Middleware adicional para manejar encabezados CORS en todas las respuestas
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
+  next();
+});
 
 // Middleware de logging para depuración
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -64,8 +76,7 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Rutas de API
-app.use("/api", mesaRoutes);
-app.use("/api", pushRoutes);
+app.use("/", routes);
 
 // Rutas de autenticación y login
 app.post("/api/reset-password", AuthController.requestPasswordReset);
