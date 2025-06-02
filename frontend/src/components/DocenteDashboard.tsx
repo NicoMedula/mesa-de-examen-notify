@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { registerPush } from "../registerPush";
 import { useNavigate } from "react-router-dom";
 
 interface Mesa {
@@ -23,9 +22,6 @@ const DocenteDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [docenteNombre, setDocenteNombre] = useState<string>("");
   const [docenteId, setDocenteId] = useState<string>("");
-  const [permiso, setPermiso] = useState(
-    typeof Notification !== "undefined" ? Notification.permission : "default"
-  );
   const [activeTab, setActiveTab] = useState("pendientes");
 
   const navigate = useNavigate();
@@ -35,6 +31,75 @@ const DocenteDashboard: React.FC = () => {
     process.env.REACT_APP_API_URL ||
     "https://83d1-181-91-222-184.ngrok-free.app";
   console.log("API_URL en DocenteDashboard:", API_URL);
+
+  const refreshMesas = async (idToUse = docenteId) => {
+    const docenteIdActual = idToUse || docenteId || 
+      sessionStorage.getItem("docenteId") || 
+      localStorage.getItem("docenteId");
+
+    console.log("[refreshMesas] docenteIdActual:", docenteIdActual);
+
+    if (!docenteIdActual || docenteIdActual === "ID") {
+      console.error("ID de docente no válido para refrescar mesas");
+      setError("No hay un ID de docente válido para refrescar mesas");
+      return;
+    }
+
+    try {
+      console.log(`[refreshMesas] Solicitando mesas para docente ${docenteIdActual}...`);
+      const timestamp = new Date().getTime();
+      const url = `${API_URL}/api/docente/${docenteIdActual}/mesas?t=${timestamp}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        mode: "cors",
+        cache: "no-cache",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
+
+      const mesasData: Mesa[] = await res.json();
+      
+      // Asegurarse de que tenemos datos válidos
+      if (!Array.isArray(mesasData)) {
+        throw new Error("Formato de datos inválido recibido del servidor");
+      }
+
+      // Filtrar mesas donde el docente actual está involucrado
+      const mesasFiltradas = mesasData.filter(mesa => 
+        mesa?.docentes?.some(docente => docente.id === docenteIdActual)
+      );
+
+      const mesasConfirmadas = mesasFiltradas.filter(
+        mesa => mesa.estado === "confirmada"
+      );
+      
+      const mesasPendientes = mesasFiltradas.filter(
+        mesa => mesa.estado !== "confirmada"
+      );
+
+      console.log("[refreshMesas] Mesas actualizadas:", {
+        total: mesasFiltradas.length,
+        confirmadas: mesasConfirmadas.length,
+        pendientes: mesasPendientes.length
+      });
+
+      // Actualizar el estado con los nuevos datos
+      setMesas(mesasPendientes);
+      setMesasConfirmadas(mesasConfirmadas);
+      
+    } catch (error: any) {
+      console.error("Error en refreshMesas:", error);
+      setError(`Error al actualizar las mesas: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Obtener el ID del docente desde sessionStorage o localStorage
@@ -129,82 +194,7 @@ const DocenteDashboard: React.FC = () => {
     }, 10000);
 
     return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    if (docenteId) {
-      registerPush();
-    }
-  }, [docenteId]);
-
-  const refreshMesas = async (idToUse = docenteId) => {
-    const docenteIdActual = idToUse || docenteId || 
-      sessionStorage.getItem("docenteId") || 
-      localStorage.getItem("docenteId");
-
-    console.log("[refreshMesas] docenteIdActual:", docenteIdActual);
-
-    if (!docenteIdActual || docenteIdActual === "ID") {
-      console.error("ID de docente no válido para refrescar mesas");
-      setError("No hay un ID de docente válido para refrescar mesas");
-      return;
-    }
-
-    try {
-      console.log(`[refreshMesas] Solicitando mesas para docente ${docenteIdActual}...`);
-      const timestamp = new Date().getTime();
-      const url = `${API_URL}/api/docente/${docenteIdActual}/mesas?t=${timestamp}`;
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        mode: "cors",
-        cache: "no-cache",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${res.statusText}`);
-      }
-
-      const mesasData: Mesa[] = await res.json();
-      
-      // Asegurarse de que tenemos datos válidos
-      if (!Array.isArray(mesasData)) {
-        throw new Error("Formato de datos inválido recibido del servidor");
-      }
-
-      // Filtrar mesas donde el docente actual está involucrado
-      const mesasFiltradas = mesasData.filter(mesa => 
-        mesa?.docentes?.some(docente => docente.id === docenteIdActual)
-      );
-
-      const mesasConfirmadas = mesasFiltradas.filter(
-        mesa => mesa.estado === "confirmada"
-      );
-      
-      const mesasPendientes = mesasFiltradas.filter(
-        mesa => mesa.estado !== "confirmada"
-      );
-
-      console.log("[refreshMesas] Mesas actualizadas:", {
-        total: mesasFiltradas.length,
-        confirmadas: mesasConfirmadas.length,
-        pendientes: mesasPendientes.length
-      });
-
-      // Actualizar el estado con los nuevos datos
-      setMesas(mesasPendientes);
-      setMesasConfirmadas(mesasConfirmadas);
-      
-    } catch (error: any) {
-      console.error("Error en refreshMesas:", error);
-      setError(`Error al actualizar las mesas: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [API_URL, refreshMesas]);
 
   const handleConfirm = async (
     mesaId: string,
@@ -257,49 +247,6 @@ const DocenteDashboard: React.FC = () => {
     }
   };
 
-  const registerPush = async () => {
-    try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        throw new Error("Las notificaciones push no están soportadas en este navegador");
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        throw new Error("Se requiere permiso para enviar notificaciones");
-      }
-
-      const registration = await navigator.serviceWorker.register("/service-worker.js");
-      console.log("Service Worker registrado:", registration);
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY
-      });
-
-      // Enviar la suscripción al servidor
-      const response = await fetch(`${API_URL}/api/push/subscribe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          subscription,
-          docenteId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al registrar la suscripción en el servidor");
-      }
-
-      console.log("Suscripción push registrada exitosamente");
-      return true;
-    } catch (error) {
-      console.error("Error al registrar push:", error);
-      throw error;
-    }
-  };
-
   const handleLogout = () => {
     sessionStorage.clear();
     localStorage.clear();
@@ -310,30 +257,6 @@ const DocenteDashboard: React.FC = () => {
   console.log("[render] docenteId:", docenteId);
   console.log("[render] mesas:", mesas);
   console.log("[render] mesasConfirmadas:", mesasConfirmadas);
-
-  // Indicador visual del valor de activeTab
-  const debugActiveTab = (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        right: 0,
-        background: "yellow",
-        zIndex: 9999,
-        padding: "4px 12px",
-        fontWeight: "bold",
-      }}
-    >
-      activeTab: {activeTab}
-    </div>
-  );
-
-  // Mensaje de prueba global
-  const globalTestMsg = (
-    <div style={{ color: "red", fontWeight: "bold", fontSize: 24 }}>
-      PRUEBA GLOBAL
-    </div>
-  );
 
   return (
     <>
@@ -348,23 +271,6 @@ const DocenteDashboard: React.FC = () => {
               Cerrar sesión
             </button>
           </div>
-
-          {typeof Notification !== "undefined" && permiso !== "granted" && (
-            <div className="alert alert-warning mt-3">
-              <p>
-                Las notificaciones push no están habilitadas. Para recibir
-                notificaciones:
-              </p>
-              <ol>
-                <li>Abre esta página en Safari</li>
-                <li>Agrégala a tu pantalla de inicio</li>
-                <li>Haz clic en el botón de abajo</li>
-              </ol>
-              <button className="btn btn-warning" onClick={registerPush}>
-                Habilitar notificaciones push
-              </button>
-            </div>
-          )}
 
           {error && (
             <div className="alert alert-danger" role="alert">

@@ -21,7 +21,7 @@ export async function registerPush() {
 
     // Detectar navegador iOS
     const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     if (isIOS) {
       console.log("Dispositivo iOS detectado, usando configuración especial");
     }
@@ -36,7 +36,46 @@ export async function registerPush() {
     );
     console.log("Service Worker registrado correctamente:", registration);
 
-    // Eliminar suscripción anterior si existe (clave VAPID diferente)
+    // Obtener el docenteId del almacenamiento
+    const docenteId =
+      sessionStorage.getItem("docenteId") || localStorage.getItem("docenteId");
+    if (!docenteId) {
+      throw new Error(
+        "No se encontró el ID del docente para registrar la suscripción push"
+      );
+    }
+
+    // Verificar suscripciones existentes
+    try {
+      const existingSubs = await fetch(`${API_URL}/api/push/subscriptions/${docenteId}`);
+      if (existingSubs.ok) {
+        const { subscriptions } = await existingSubs.json();
+        if (subscriptions && subscriptions.length > 0) {
+          console.log("Suscripciones existentes encontradas:", subscriptions);
+          // Eliminar suscripciones anteriores
+          for (const sub of subscriptions) {
+            try {
+              await fetch(`${API_URL}/api/push/unsubscribe`, {
+                method: "DELETE",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  docenteId,
+                  endpoint: sub.endpoint,
+                }),
+              });
+            } catch (err) {
+              console.warn("Error al eliminar suscripción anterior:", err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Error al verificar suscripciones existentes:", err);
+    }
+
+    // Eliminar suscripción anterior si existe
     const existingSubscription = await registration.pushManager.getSubscription();
     if (existingSubscription) {
       console.log("Eliminando suscripción push anterior...");
@@ -52,15 +91,6 @@ export async function registerPush() {
       throw new Error("Permiso de notificaciones denegado");
     }
 
-    // Obtener el docenteId del almacenamiento
-    const docenteId =
-      sessionStorage.getItem("docenteId") || localStorage.getItem("docenteId");
-    if (!docenteId) {
-      throw new Error(
-        "No se encontró el ID del docente para registrar la suscripción push"
-      );
-    }
-
     // Usar la clave VAPID directamente desde las variables de entorno
     let publicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY;
     if (!publicKey) {
@@ -73,11 +103,12 @@ export async function registerPush() {
     console.log("Creando suscripción push...");
     let subscription;
     try {
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
+        applicationServerKey: applicationServerKey as unknown as ArrayBuffer,
       });
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "InvalidStateError") {
         console.warn(
           "Ya existe una suscripción con otra clave. Eliminando y reintentando..."
@@ -87,9 +118,10 @@ export async function registerPush() {
           await existing.unsubscribe();
         }
         // Reintentar la suscripción
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
+          applicationServerKey: applicationServerKey as unknown as ArrayBuffer,
         });
       } else {
         throw err;
@@ -153,25 +185,28 @@ export async function registerPush() {
         success: true,
         message: "Notificaciones configuradas correctamente",
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al procesar suscripción:", error);
       return { success: false, error: error.message };
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al registrar notificaciones push:", error);
     return { success: false, error: error.message };
   }
 }
 
-export function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+// Función auxiliar para convertir la clave VAPID a formato Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
+
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
-}
+} 

@@ -19,16 +19,6 @@ interface Mesa {
   docentes: { id: string; nombre: string; confirmacion: string }[];
 }
 
-// Usar sessionStorage con el contexto de ruta para evitar conflictos entre pestan00f1as
-const getDepartamentoPath = () => {
-  // Verificar si estamos en el contexto de departamento
-  const path = sessionStorage.getItem("currentPath");
-  if (path !== "departamento") {
-    console.warn("No estamos en el contexto del departamento:", path);
-  }
-  return path === "departamento";
-};
-
 const DepartamentoDashboard: React.FC = () => {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [mesasConfirmadas, setMesasConfirmadas] = useState<Mesa[]>([]);

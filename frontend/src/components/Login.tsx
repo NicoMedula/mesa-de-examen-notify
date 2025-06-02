@@ -1,9 +1,6 @@
 import React, { useState } from "react";
-import { UserRole } from "../types/user";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate, Link } from "react-router-dom";
-
-const FIXED_PASSWORD = "12345"; // Contraseña preestablecida
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -11,12 +8,6 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Constante para el email del departamento
-  const DEPARTAMENTO_EMAIL = "departamento@ejemplo.com";
-
-  // No necesitamos cargar la lista de docentes por adelantado
-  // La autenticación se hará al momento de enviar el formulario
 
   // Asegurarnos de que tenemos una URL de API válida
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
