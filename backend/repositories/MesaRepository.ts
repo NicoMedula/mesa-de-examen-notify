@@ -223,7 +223,10 @@ export class MesaRepository {
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
     // Actualiza solo la mesa con el id indicado
-    const { error } = await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada)).eq("id", mesaId);
+    const { error } = await this.db
+      .from("mesas")
+      .update(this.adaptMesaToDB(mesaActualizada))
+      .eq("id", mesaId);
     if (error) {
       throw new Error(error.message || "Error al actualizar la mesa");
     }
@@ -254,15 +257,26 @@ export class MesaRepository {
       }
 
       // Verificamos que el docente exista en la mesa
-      const docenteExiste = mesa.docentes.some(d => d.id === docenteId);
+      const docenteExiste = mesa.docentes.some((d) => d.id === docenteId);
       if (!docenteExiste) {
         throw new Error("El docente no está asignado a esta mesa");
       }
 
       // Actualizamos la confirmación del docente en el array de docentes
-      const docentesActualizados = mesa.docentes.map((docente) =>
-        docente.id === docenteId ? { ...docente, confirmacion } : docente
-      );
+      const ahora = new Date().toISOString();
+      const docentesActualizados = mesa.docentes.map((docente) => {
+        if (docente.id === docenteId) {
+          return {
+            ...docente,
+            confirmacion,
+            confirmacionHora:
+              confirmacion === "aceptado" || confirmacion === "rechazado"
+                ? ahora
+                : undefined,
+          };
+        }
+        return docente;
+      });
 
       // Actualizamos en la base de datos
       const { error } = await this.db
@@ -272,7 +286,9 @@ export class MesaRepository {
 
       if (error) {
         console.error("Error al actualizar la confirmación:", error);
-        throw new Error("Error al actualizar la confirmación en la base de datos");
+        throw new Error(
+          "Error al actualizar la confirmación en la base de datos"
+        );
       }
 
       // Obtener la mesa actualizada

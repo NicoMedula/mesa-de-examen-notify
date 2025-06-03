@@ -1,8 +1,8 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
-  roots: ["<rootDir>/src"],
-  testMatch: ["**/*.test.ts"],
+  roots: ["<rootDir>/frontend/tests"],
+  testMatch: ["**/*.test.ts", "**/*.spec.ts"],
   collectCoverage: true,
   coverageDirectory: "coverage",
   coverageThreshold: {
@@ -17,4 +17,5 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   coveragePathIgnorePatterns: ["src/middleware/autenticacion.js"],
+  testPathIgnorePatterns: ["/e2e/"],
 };
