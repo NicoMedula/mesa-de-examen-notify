@@ -77,7 +77,9 @@ export class MesaService {
           ),
           destinatarios: idsDocentes,
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDocentes);
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDocentes
+        );
         // Notificar al departamento (puedes personalizar el destinatario si tienes uno)
         const notificacionDepartamento = {
           ...NotificacionFactory.crearNotificacionActualizacion(
@@ -86,7 +88,9 @@ export class MesaService {
           ),
           destinatarios: ["departamento"],
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDepartamento
+        );
       }
 
       // Si un docente rechaza, notificar al otro docente y al departamento
@@ -106,11 +110,15 @@ export class MesaService {
         const notificacionDepartamento = {
           ...NotificacionFactory.crearNotificacionActualizacion(
             mesa,
-            `${docente?.nombre || "Un docente"} ha rechazado la mesa. El departamento debe reasignar o cancelar.`
+            `${
+              docente?.nombre || "Un docente"
+            } ha rechazado la mesa. El departamento debe reasignar o cancelar.`
           ),
           destinatarios: ["departamento"],
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDepartamento
+        );
       }
 
       return mesa;
@@ -124,10 +132,31 @@ export class MesaService {
     const mesas = await this.mesaRepository.getAllMesas();
     const mesa = mesas.find((m) => m.id === mesaId);
 
-    if (mesa) {
-      const notificacion =
-        NotificacionFactory.crearNotificacionRecordatorio(mesa);
+    if (
+      mesa &&
+      mesa.estado === "confirmada" &&
+      mesa.docentes &&
+      mesa.docentes.length >= 2
+    ) {
+      // Obtener solo los IDs de los docentes titular y vocal (los dos primeros docentes)
+      const docentesIds = mesa.docentes
+        .slice(0, 2)
+        .map((docente) => docente.id);
+
+      const notificacion = {
+        ...NotificacionFactory.crearNotificacionRecordatorio(mesa),
+        destinatarios: docentesIds, // Especificar que solo se envíe a estos docentes
+      };
+
+      console.log(
+        `Enviando recordatorio para mesa ${mesaId} a docentes:`,
+        docentesIds
+      );
       await this.notificacionStrategy.enviar(notificacion);
+    } else {
+      console.log(
+        `No se pudo enviar recordatorio: Mesa ${mesaId} no encontrada, no confirmada o sin docentes asignados`
+      );
     }
   }
 

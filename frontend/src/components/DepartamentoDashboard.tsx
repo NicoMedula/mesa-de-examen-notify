@@ -32,6 +32,10 @@ const DepartamentoDashboard: React.FC = () => {
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  const [showRecordatorioModal, setShowRecordatorioModal] = useState(false);
+  const [selectedMesa, setSelectedMesa] = useState<Mesa | null>(null);
+  const [horasAntes, setHorasAntes] = useState<number>(24);
+  const [recordatorios, setRecordatorios] = useState<any[]>([]);
 
   // Efecto para limpiar el mensaje de error después de un tiempo
   useEffect(() => {
@@ -414,6 +418,173 @@ const DepartamentoDashboard: React.FC = () => {
     navigate("/login");
   };
 
+  const handleShowRecordatorioModal = async (mesa: Mesa) => {
+    setSelectedMesa(mesa);
+    setHorasAntes(24); // Valor por defecto: 24 horas
+    setShowRecordatorioModal(true);
+
+    // Cargar recordatorios existentes para esta mesa
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        setRecordatorios([]);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/mesa/${mesa.id}/recordatorios`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRecordatorios(data || []);
+      } else {
+        console.error("Error al cargar recordatorios:", res.status);
+        setRecordatorios([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar recordatorios:", error);
+      setRecordatorios([]);
+    }
+  };
+
+  const handleCloseRecordatorioModal = () => {
+    setShowRecordatorioModal(false);
+    setSelectedMesa(null);
+  };
+
+  const handleCreateRecordatorio = async () => {
+    if (!selectedMesa) return;
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/mesa/${selectedMesa.id}/recordatorio-programado`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ horas_antes: horasAntes }),
+        }
+      );
+
+      if (res.ok) {
+        const nuevoRecordatorio = await res.json();
+        setRecordatorios([...recordatorios, nuevoRecordatorio]);
+        setError("Recordatorio creado correctamente");
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al crear recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al crear recordatorio: ${error.message || "Error desconocido"}`
+      );
+    }
+  };
+
+  const handleDeleteRecordatorio = async (recordatorioId: string) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/recordatorio/${recordatorioId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        setRecordatorios(recordatorios.filter((r) => r.id !== recordatorioId));
+        setError("Recordatorio eliminado correctamente");
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al eliminar recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al eliminar recordatorio: ${
+          error.message || "Error desconocido"
+        }`
+      );
+    }
+  };
+
+  // Función para enviar recordatorio manual a los docentes de una mesa confirmada
+  const handleSendRecordatorio = async (mesaId: string) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/mesa/${mesaId}/enviar-recordatorio`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (res.ok) {
+        setError(
+          "Recordatorio enviado correctamente a los docentes titular y vocal"
+        );
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al enviar recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al enviar recordatorio: ${error.message || "Error desconocido"}`
+      );
+    }
+  };
+
   return (
     <div className="container-fluid px-lg-5">
       <div className="row align-items-center my-3">
@@ -714,6 +885,7 @@ const DepartamentoDashboard: React.FC = () => {
                                     >
                                       Eliminar
                                     </button>
+                                    {/* Botón de recordatorios eliminado para mesas pendientes */}
                                     {bothAccepted && (
                                       <button
                                         className="btn btn-success btn-sm"
@@ -885,12 +1057,30 @@ const DepartamentoDashboard: React.FC = () => {
                                 )}
                               </td>
                               <td>
-                                <button
-                                  className="btn btn-warning btn-sm"
-                                  onClick={() => handleCancelMesa(mesa.id)}
-                                >
-                                  Cancelar
-                                </button>
+                                <div className="d-flex flex-column flex-sm-row gap-2">
+                                  <button
+                                    className="btn btn-warning btn-sm"
+                                    onClick={() => handleCancelMesa(mesa.id)}
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    className="btn btn-info btn-sm"
+                                    onClick={() =>
+                                      handleShowRecordatorioModal(mesa)
+                                    }
+                                  >
+                                    Recordatorios
+                                  </button>
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() =>
+                                      handleSendRecordatorio(mesa.id)
+                                    }
+                                  >
+                                    Enviar Recordatorio
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -1094,6 +1284,101 @@ const DepartamentoDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Recordatorios */}
+      {showRecordatorioModal && selectedMesa && (
+        <div className="modal show d-block" tabIndex={-1} role="dialog">
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Recordatorios para {selectedMesa.materia}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={handleCloseRecordatorioModal}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label htmlFor="horasAntes" className="form-label">
+                    Horas antes del examen
+                  </label>
+                  <select
+                    id="horasAntes"
+                    className="form-select"
+                    value={horasAntes}
+                    onChange={(e) => setHorasAntes(Number(e.target.value))}
+                  >
+                    <option value="24">24 horas</option>
+                    <option value="48">48 horas</option>
+                    <option value="72">72 horas</option>
+                  </select>
+                </div>
+
+                <button
+                  className="btn btn-primary mb-3"
+                  onClick={handleCreateRecordatorio}
+                >
+                  Crear Recordatorio
+                </button>
+
+                {recordatorios.length > 0 ? (
+                  <div>
+                    <h6>Recordatorios programados:</h6>
+                    <ul className="list-group">
+                      {recordatorios.map((recordatorio) => (
+                        <li
+                          key={recordatorio.id}
+                          className="list-group-item d-flex justify-content-between align-items-center"
+                        >
+                          <span>
+                            {recordatorio.horas_antes} horas antes
+                            {recordatorio.enviado && (
+                              <span className="badge bg-success ms-2">
+                                Enviado
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() =>
+                              handleDeleteRecordatorio(recordatorio.id)
+                            }
+                          >
+                            Eliminar
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p>No hay recordatorios programados.</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseRecordatorioModal}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay para el modal */}
+      {showRecordatorioModal && (
+        <div
+          className="modal-backdrop fade show"
+          onClick={handleCloseRecordatorioModal}
+        ></div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { MesaController } from "../controllers/MesaController";
+import { RecordatorioController } from "../controllers/RecordatorioController";
 import { supabase } from "../config/supabase";
 import autenticarJWT from "../middleware/autenticacion";
+import { checkRol } from "../middleware/checkRol";
 
 const router = Router();
 const mesaController = MesaController.getInstance();
+const recordatorioController = RecordatorioController.getInstance();
 
 router.get("/docente/:id/mesas", (req, res) => {
   // Forzar headers para asegurar respuesta JSON
@@ -30,6 +33,35 @@ router.post("/mesa/:mesaId/docente/:docenteId/confirmar", (req, res) =>
 
 router.post("/mesa/:mesaId/recordatorio", (req, res) =>
   mesaController.enviarRecordatorio(req, res)
+);
+
+// Ruta alternativa para enviar recordatorios (para compatibilidad con el frontend)
+router.post("/mesa/:mesaId/enviar-recordatorio", (req, res) =>
+  mesaController.enviarRecordatorio(req, res)
+);
+
+// Rutas para recordatorios programados
+router.post(
+  "/mesa/:mesaId/recordatorio-programado",
+  autenticarJWT(),
+  checkRol("departamento"),
+  (req, res) => recordatorioController.crearRecordatorio(req, res)
+);
+
+router.get("/mesa/:mesaId/recordatorios", autenticarJWT(), (req, res) =>
+  recordatorioController.getRecordatoriosByMesaId(req, res)
+);
+
+router.delete(
+  "/recordatorio/:recordatorioId",
+  autenticarJWT(),
+  checkRol("departamento"),
+  (req, res) => recordatorioController.deleteRecordatorio(req, res)
+);
+
+// Ruta para procesar recordatorios pendientes (podría ser llamada por un cron job)
+router.post("/procesar-recordatorios", (req, res) =>
+  recordatorioController.procesarRecordatoriosPendientes(req, res)
 );
 
 // Ruta para obtener todas las mesas - accesible para departamento y docentes

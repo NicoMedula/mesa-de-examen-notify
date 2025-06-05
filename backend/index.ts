@@ -21,11 +21,14 @@ const io = new Server(httpServer, {
   },
 });
 
-
 // Configuración de CORS mejorada
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3003", /\.vercel\.app$/],
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3003",
+      /\.vercel\.app$/,
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Origin",
@@ -43,7 +46,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
-
 
 // Procesar datos JSON
 app.use(express.json());
