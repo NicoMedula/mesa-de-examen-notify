@@ -6,7 +6,7 @@ describe("Supabase Mock", () => {
     const fromResult = supabase.from("test-table");
     expect(fromResult).toBeDefined();
 
-    // Verificar que el mock de select funciona
+    // Verificar que el mock de select funciona.
     const selectResult = await fromResult.select("*");
     expect(selectResult).toBeDefined();
     expect(selectResult.data).toEqual([]);
