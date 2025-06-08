@@ -25,7 +25,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.9",
     "@types/cors": "^2.8.12",
-    "@types/jest": "^27.0.3",
     "@types/node": "^16.11.12",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
@@ -48,6 +47,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
+    "@types/jest": "^27.5.2",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/supertest": "^6.0.3",
     "@types/web-push": "^3.6.4",
