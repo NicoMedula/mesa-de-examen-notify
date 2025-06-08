@@ -16,15 +16,14 @@ jest.mock("../../strategies/NotificacionStrategy", () => {
   // Mock de enviar que no lanza errores
   const mockEnviar = jest.fn().mockImplementation(() => Promise.resolve(undefined));
 
-  return {
-    ...originalModule,
+  return Object.assign({}, originalModule, {
     PushNotificacionStrategy: {
       getInstance: jest.fn().mockReturnValue({
         enviar: mockEnviar,
         addSubscription: jest.fn(),
       }),
     },
-  };
+  });
 });
 
 // Mock del repositorio
@@ -48,57 +47,51 @@ jest.mock("../../repositories/MesaRepository", () => {
     MesaRepository: {
       getInstance: jest.fn().mockReturnValue({
         getMesasByDocenteId: jest.fn().mockImplementation(() => Promise.resolve([mockMesa])),
-        updateConfirmacion: jest.fn().mockImplementation(
-          function(this: unknown, mesaId: string, docenteId: string, confirmacion: EstadoConfirmacion) {
-            const updatedDocentes = mockMesa.docentes.map(docente => 
-              docente.id === docenteId 
-                ? { ...docente, confirmacion } 
-                : docente
-            );
-            return Promise.resolve({
-              id: mockMesa.id,
-              materia: mockMesa.materia,
-              fecha: mockMesa.fecha,
-              hora: mockMesa.hora,
-              aula: mockMesa.aula,
-              estado: mockMesa.estado,
-              docente_titular: mockMesa.docente_titular,
-              docente_vocal: mockMesa.docente_vocal,
-              docentes: updatedDocentes,
-            });
-          }
-        ),
+        updateConfirmacion: jest.fn((mesaId: string, docenteId: string, confirmacion: EstadoConfirmacion) => {
+          const updatedDocentes = mockMesa.docentes.map(docente => 
+            docente.id === docenteId 
+              ? { ...docente, confirmacion } 
+              : docente
+          );
+          return Promise.resolve({
+            id: mockMesa.id,
+            materia: mockMesa.materia,
+            fecha: mockMesa.fecha,
+            hora: mockMesa.hora,
+            aula: mockMesa.aula,
+            estado: mockMesa.estado,
+            docente_titular: mockMesa.docente_titular,
+            docente_vocal: mockMesa.docente_vocal,
+            docentes: updatedDocentes,
+          });
+        }),
         getAllMesas: jest.fn().mockImplementation(() => Promise.resolve([mockMesa])),
-        createMesa: jest.fn().mockImplementation(
-          function(this: unknown, mesa: Mesa) {
-            return Promise.resolve({
-              id: "M-new",
-              materia: mesa.materia,
-              fecha: mesa.fecha,
-              hora: mesa.hora,
-              aula: mesa.aula,
-              estado: mesa.estado,
-              docente_titular: mesa.docente_titular,
-              docente_vocal: mesa.docente_vocal,
-              docentes: mesa.docentes,
-            });
-          }
-        ),
-        updateMesa: jest.fn().mockImplementation(
-          function(this: unknown, mesaId: string, mesaActualizada: Partial<Mesa>) {
-            return Promise.resolve({
-              id: mockMesa.id,
-              materia: mesaActualizada.materia || mockMesa.materia,
-              fecha: mesaActualizada.fecha || mockMesa.fecha,
-              hora: mesaActualizada.hora || mockMesa.hora,
-              aula: mesaActualizada.aula || mockMesa.aula,
-              estado: mesaActualizada.estado || mockMesa.estado,
-              docente_titular: mesaActualizada.docente_titular || mockMesa.docente_titular,
-              docente_vocal: mesaActualizada.docente_vocal || mockMesa.docente_vocal,
-              docentes: mesaActualizada.docentes || mockMesa.docentes,
-            });
-          }
-        ),
+        createMesa: jest.fn((mesa: Mesa) => {
+          return Promise.resolve({
+            id: "M-new",
+            materia: mesa.materia,
+            fecha: mesa.fecha,
+            hora: mesa.hora,
+            aula: mesa.aula,
+            estado: mesa.estado,
+            docente_titular: mesa.docente_titular,
+            docente_vocal: mesa.docente_vocal,
+            docentes: mesa.docentes,
+          });
+        }),
+        updateMesa: jest.fn((mesaId: string, mesaActualizada: Partial<Mesa>) => {
+          return Promise.resolve({
+            id: mockMesa.id,
+            materia: mesaActualizada.materia || mockMesa.materia,
+            fecha: mesaActualizada.fecha || mockMesa.fecha,
+            hora: mesaActualizada.hora || mockMesa.hora,
+            aula: mesaActualizada.aula || mockMesa.aula,
+            estado: mesaActualizada.estado || mockMesa.estado,
+            docente_titular: mesaActualizada.docente_titular || mockMesa.docente_titular,
+            docente_vocal: mesaActualizada.docente_vocal || mockMesa.docente_vocal,
+            docentes: mesaActualizada.docentes || mockMesa.docentes,
+          });
+        }),
         deleteMesa: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
       }),
     },
@@ -262,7 +255,7 @@ describe("MesaService", () => {
 
       const mesa = await mesaService.updateMesa("M1", mesaActualizada);
       expect(mesa).toBeDefined();
-      expect(mesa.aula).toBe("Aula 1"); // No cambia porque el mock siempre devuelve lo mismo
+      expect(mesa.aula).toBe("Aula Nueva"); // El mock actualiza el campo si se lo pasan
     });
 
     it("debería manejar errores al actualizar una mesa", async () => {
