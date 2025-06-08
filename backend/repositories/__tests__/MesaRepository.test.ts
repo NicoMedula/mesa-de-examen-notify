@@ -192,20 +192,6 @@ describe("MesaRepository", () => {
     );
   });
 
-  it("debería manejar errores al eliminar una mesa", async () => {
-    // Configurar el mock para simular un error en el delete
-    supabase.from = jest.fn().mockReturnValue({
-      delete: jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({
-          data: null,
-          error: new Error("Error al eliminar"),
-        }),
-      }),
-    });
-
-    await expect(repository.deleteMesa("1")).rejects.toThrow("Error al eliminar");
-  });
-
   it("debería actualizar la confirmación de un docente", async () => {
     const mesaOriginal = {
       id: "1",
@@ -319,6 +305,285 @@ describe("MesaRepository", () => {
 
     const mesa = await repository.getMesaById("999");
     expect(mesa).toBeNull();
+  });
+
+  it("debería manejar errores al eliminar una mesa", async () => {
+    // Configurar el mock para simular un error en el delete
+    supabase.from = jest.fn().mockReturnValue({
+      delete: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: new Error("Error al eliminar"),
+        }),
+      }),
+    });
+
+    await expect(repository.deleteMesa("1")).rejects.toThrow("Error al eliminar");
+  });
+
+  it("debería rechazar una mesa sin materia", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "",
+      fecha: "2024-03-20",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("La materia es obligatoria");
+  });
+
+  it("debería rechazar una mesa sin fecha", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("La fecha es obligatoria");
+  });
+
+  it("debería rechazar una mesa con menos de dos docentes", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2024-03-20",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("Se requieren al menos dos docentes para una mesa");
+  });
+
+  it("debería rechazar una mesa con conflicto de horario", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2024-03-20",
+      hora: "15:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    // Mock de mesas existentes con conflicto de horario
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        data: [{
+          id: "2",
+          materia: "Otra Materia",
+          fecha: "2024-03-20",
+          hora: "16:00",
+          aula: "Aula 102",
+          estado: "pendiente",
+          docente_titular: "123",
+          docente_vocal: "789",
+          docentes: [
+            { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+            { id: "789", nombre: "Docente 3", confirmacion: "pendiente" },
+          ],
+        }],
+        error: null,
+      }),
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: [nuevaMesa], error: null }),
+      }),
+    });
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("Conflicto de horario para el docente");
+  });
+
+  it("debería manejar el caso cuando la mesa no existe en updateMesa", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+
+    const mesaActualizada: Partial<Mesa> = {
+      aula: "Aula 102",
+    };
+
+    await expect(repository.updateMesa("999", mesaActualizada)).rejects.toThrow("No se encontró la mesa actualizada");
+  });
+
+  it("debería manejar errores en la consulta select después del update", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({
+        data: null,
+        error: new Error("Error al obtener la mesa actualizada"),
+      }),
+    });
+
+    const mesaActualizada: Partial<Mesa> = {
+      aula: "Aula 102",
+    };
+
+    await expect(repository.updateMesa("1", mesaActualizada)).rejects.toThrow("Error al obtener la mesa actualizada");
+  });
+
+  it("debería manejar el caso cuando no hay mesas en getMesasByDocenteId", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    const mesas = await repository.getMesasByDocenteId("123");
+    expect(mesas).toEqual([]);
+  });
+
+  it("debería manejar el caso cuando hay un error en la consulta de getMesasByDocenteId", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        data: null,
+        error: new Error("Error al obtener mesas"),
+      }),
+    });
+
+    await expect(repository.getMesasByDocenteId("123")).rejects.toThrow("Error al obtener mesas");
+  });
+
+  it("debería rechazar la creación de una mesa sin materia", async () => {
+    const nuevaMesa = {
+      id: "1",
+      materia: "",
+      fecha: "2025-06-11",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+    await expect(repository.createMesa(nuevaMesa as any)).rejects.toThrow("La materia es obligatoria");
+  });
+
+  it("debería rechazar la creación de una mesa sin fecha", async () => {
+    const nuevaMesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+    await expect(repository.createMesa(nuevaMesa as any)).rejects.toThrow("La fecha es obligatoria");
+  });
+
+  it("debería rechazar la creación de una mesa con menos de dos docentes", async () => {
+    const nuevaMesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2025-06-11",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+      ],
+    };
+    await expect(repository.createMesa(nuevaMesa as any)).rejects.toThrow("Se requieren al menos dos docentes para una mesa");
+  });
+
+  it("debería rechazar la creación de una mesa con conflicto de horario", async () => {
+    // Simular conflicto de horario
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "2" }], error: null }),
+    });
+    const nuevaMesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2025-06-11",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+    await expect(repository.createMesa(nuevaMesa as any)).rejects.toThrow("Conflicto de horario para el docente");
+  });
+
+  it("debería manejar error si la mesa a actualizar no existe", async () => {
+    // Simular que no se encuentra la mesa actualizada
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    const mesaActualizada = { aula: "Aula 102" };
+    await expect(repository.updateMesa("999", mesaActualizada)).rejects.toThrow("No se encontró la mesa actualizada");
+  });
+
+  it("debería manejar error en el select después de actualizar una mesa", async () => {
+    // Simular error en el select
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: null, error: new Error("Error al obtener la mesa actualizada") }),
+    });
+    const mesaActualizada = { aula: "Aula 102" };
+    await expect(repository.updateMesa("1", mesaActualizada)).rejects.toThrow("Error al obtener la mesa actualizada");
+  });
+
+  it("debería devolver un array vacío si no hay mesas para el docente", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    const mesas = await repository.getMesasByDocenteId("123");
+    expect(mesas).toEqual([]);
+  });
+
+  it("debería manejar error al obtener mesas por docente", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: null, error: new Error("Error al obtener mesas") }),
+    });
+    await expect(repository.getMesasByDocenteId("123")).rejects.toThrow("Error al obtener mesas");
   });
 });
 
@@ -987,3 +1252,176 @@ function createDeleteMock({ data = [], error = null } = {}) {
     eq: jest.fn().mockResolvedValue({ data, error }),
   });
 }
+
+describe("createMesa - validaciones adicionales", () => {
+  let repository: MesaRepository;
+  beforeEach(() => {
+    repository = MesaRepository.getInstance(supabase);
+  });
+
+  it("debería rechazar una mesa sin materia", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "",
+      fecha: "2024-03-20",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("La materia es obligatoria");
+  });
+
+  it("debería rechazar una mesa sin fecha", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("La fecha es obligatoria");
+  });
+
+  it("debería rechazar una mesa con menos de dos docentes", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2024-03-20",
+      hora: "14:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+      ],
+    };
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("Se requieren al menos dos docentes para una mesa");
+  });
+
+  it("debería rechazar una mesa con conflicto de horario", async () => {
+    const nuevaMesa: Mesa = {
+      id: "1",
+      materia: "Matemática I",
+      fecha: "2024-03-20",
+      hora: "15:00",
+      aula: "Aula 101",
+      estado: "pendiente",
+      docente_titular: "123",
+      docente_vocal: "456",
+      docentes: [
+        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
+      ],
+    };
+
+    // Mock de mesas existentes con conflicto de horario
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        data: [{
+          id: "2",
+          materia: "Otra Materia",
+          fecha: "2024-03-20",
+          hora: "16:00",
+          aula: "Aula 102",
+          estado: "pendiente",
+          docente_titular: "123",
+          docente_vocal: "789",
+          docentes: [
+            { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
+            { id: "789", nombre: "Docente 3", confirmacion: "pendiente" },
+          ],
+        }],
+        error: null,
+      }),
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: [nuevaMesa], error: null }),
+      }),
+    });
+
+    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow("Conflicto de horario para el docente");
+  });
+});
+
+describe("updateMesa - casos adicionales", () => {
+  let repository: MesaRepository;
+  beforeEach(() => {
+    repository = MesaRepository.getInstance(supabase);
+  });
+
+  it("debería manejar el caso cuando la mesa no existe", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+
+    const mesaActualizada: Partial<Mesa> = {
+      aula: "Aula 102",
+    };
+
+    await expect(repository.updateMesa("999", mesaActualizada)).rejects.toThrow("No se encontró la mesa actualizada");
+  });
+
+  it("debería manejar errores en la consulta select después del update", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({
+        data: null,
+        error: new Error("Error al obtener la mesa actualizada"),
+      }),
+    });
+
+    const mesaActualizada: Partial<Mesa> = {
+      aula: "Aula 102",
+    };
+
+    await expect(repository.updateMesa("1", mesaActualizada)).rejects.toThrow("Error al obtener la mesa actualizada");
+  });
+});
+
+describe("getMesasByDocenteId - casos adicionales", () => {
+  let repository: MesaRepository;
+  beforeEach(() => {
+    repository = MesaRepository.getInstance(supabase);
+  });
+
+  it("debería manejar el caso cuando no hay mesas", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+
+    const mesas = await repository.getMesasByDocenteId("123");
+    expect(mesas).toHaveLength(0);
+  });
+
+  it("debería manejar el caso cuando hay un error en la consulta", async () => {
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        data: null,
+        error: new Error("Error al obtener mesas"),
+      }),
+    });
+
+    await expect(repository.getMesasByDocenteId("123")).rejects.toThrow("Error al obtener mesas");
+  });
+});
