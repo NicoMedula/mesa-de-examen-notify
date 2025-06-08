@@ -266,10 +266,26 @@ describe("MesaService", () => {
       };
       await expect(mesaService.updateMesa("M1", mesaActualizada)).rejects.toThrow("Error al actualizar mesa");
     });
+
+    it("debería enviar notificaciones push al actualizar una mesa a confirmada", async () => {
+      const mesaActualizada: Partial<Mesa> = {
+        estado: "confirmada" as EstadoMesa,
+      };
+      await mesaService.updateMesa("M1", mesaActualizada);
+      expect(mockEnviar).toHaveBeenCalled();
+    });
+
+    it("debería enviar notificaciones push al actualizar una mesa a pendiente", async () => {
+      const mesaActualizada: Partial<Mesa> = {
+        estado: "pendiente" as EstadoMesa,
+      };
+      await mesaService.updateMesa("M1", mesaActualizada);
+      expect(mockEnviar).toHaveBeenCalled();
+    });
   });
 
   describe("deleteMesa", () => {
-    it("debería eliminar una mesa sin errores", async () => {
+    it("debería eliminar una mesa correctamente", async () => {
       await expect(mesaService.deleteMesa("M1")).resolves.not.toThrow();
     });
 
@@ -281,7 +297,7 @@ describe("MesaService", () => {
   });
 
   describe("getAllMesas", () => {
-    it("debería obtener todas las mesas", async () => {
+    it("debería obtener todas las mesas correctamente", async () => {
       const mesas = await mesaService.getAllMesas();
       expect(mesas).toBeDefined();
       expect(Array.isArray(mesas)).toBe(true);
@@ -289,9 +305,37 @@ describe("MesaService", () => {
     });
 
     it("debería manejar errores al obtener todas las mesas", async () => {
-      const mockError = new Error("Error al obtener todas las mesas");
+      const mockError = new Error("Error al obtener mesas");
       jest.spyOn(MesaRepository.getInstance(), "getAllMesas").mockRejectedValueOnce(mockError);
-      await expect(mesaService.getAllMesas()).rejects.toThrow("Error al obtener todas las mesas");
+      await expect(mesaService.getAllMesas()).rejects.toThrow("Error al obtener mesas");
+    });
+  });
+
+  describe("confirmarMesa - casos adicionales", () => {
+    it("debería enviar notificaciones cuando ambos docentes aceptan", async () => {
+      // Primera confirmación
+      await mesaService.confirmarMesa("M1", "123", "aceptado");
+      // Segunda confirmación
+      await mesaService.confirmarMesa("M1", "456", "aceptado");
+      expect(mockEnviar).toHaveBeenCalledTimes(2);
+    });
+
+    it("debería enviar notificaciones cuando un docente rechaza", async () => {
+      await mesaService.confirmarMesa("M1", "123", "rechazado");
+      expect(mockEnviar).toHaveBeenCalled();
+    });
+
+    it("debería manejar el caso cuando el docente no existe en la mesa", async () => {
+      const mesa = await mesaService.confirmarMesa("M1", "999", "aceptado");
+      expect(mesa).toBeDefined();
+      expect(mockEnviar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("enviarRecordatorio - casos adicionales", () => {
+    it("debería manejar el caso cuando la mesa no existe", async () => {
+      await expect(mesaService.enviarRecordatorio("MesaInexistente")).resolves.not.toThrow();
+      expect(mockEnviar).not.toHaveBeenCalled();
     });
   });
 });

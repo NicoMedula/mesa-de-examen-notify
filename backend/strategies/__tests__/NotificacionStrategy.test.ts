@@ -637,6 +637,187 @@ describe("PushNotificacionStrategy", () => {
     // Restaurar console.log
     consoleLogSpy.mockRestore();
   });
+
+  it("debería manejar errores al enviar notificaciones push", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+
+    // Mock de error en webpush.sendNotification
+    webpush.sendNotification.mockRejectedValueOnce(new Error("Error de envío"));
+
+    // Crear notificación
+    const notificacion = {
+      tipo: "confirmacion" as const,
+      mensaje: "Docente 1, confirmación de mesa",
+      timestamp: new Date(),
+      destinatarios: ["123"],
+    };
+
+    // Enviar notificación y verificar que no lanza error
+    await expect(strategy.enviar(notificacion as any)).resolves.not.toThrow();
+  });
+
+  it("debería eliminar suscripciones expiradas", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+
+    // Mock de error 410 (Gone) en webpush.sendNotification
+    webpush.sendNotification.mockRejectedValueOnce({ statusCode: 410 });
+
+    // Crear notificación
+    const notificacion = {
+      tipo: "confirmacion" as const,
+      mensaje: "Docente 1, confirmación de mesa",
+      timestamp: new Date(),
+      destinatarios: ["123"],
+    };
+
+    // Enviar notificación
+    await strategy.enviar(notificacion as any);
+
+    // Verificar que la suscripción fue eliminada
+    expect(strategy.getActiveSubscriptions("123")).toHaveLength(0);
+  });
+
+  it("debería eliminar suscripciones no encontradas", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+
+    // Mock de error 404 (Not Found) en webpush.sendNotification
+    webpush.sendNotification.mockRejectedValueOnce({ statusCode: 404 });
+
+    // Crear notificación
+    const notificacion = {
+      tipo: "confirmacion" as const,
+      mensaje: "Docente 1, confirmación de mesa",
+      timestamp: new Date(),
+      destinatarios: ["123"],
+    };
+
+    // Enviar notificación
+    await strategy.enviar(notificacion as any);
+
+    // Verificar que la suscripción fue eliminada
+    expect(strategy.getActiveSubscriptions("123")).toHaveLength(0);
+  });
+
+  it("debería limpiar suscripciones expiradas", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+    strategy.addSubscription({
+      docenteId: "456",
+      subscription: { endpoint: "endpoint2" },
+    });
+
+    // Mock de error 410 para la primera suscripción
+    webpush.sendNotification
+      .mockRejectedValueOnce({ statusCode: 410 })
+      .mockResolvedValueOnce(undefined);
+
+    // Ejecutar limpieza
+    await strategy.cleanupExpiredSubscriptions();
+
+    // Verificar que solo quedó la suscripción válida
+    expect(strategy.getActiveSubscriptions("123")).toHaveLength(0);
+    expect(strategy.getActiveSubscriptions("456")).toHaveLength(1);
+  });
+
+  it("debería manejar suscripciones inválidas", async () => {
+    // Intentar agregar suscripciones inválidas
+    strategy.addSubscription({
+      docenteId: "",
+      subscription: { endpoint: "endpoint1" },
+    });
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: null,
+    } as any);
+
+    // Verificar que no se agregaron suscripciones
+    expect(strategy.getActiveSubscriptions()).toEqual({});
+  });
+
+  it("debería obtener suscripciones activas por docenteId", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+    strategy.addSubscription({
+      docenteId: "456",
+      subscription: { endpoint: "endpoint2" },
+    });
+
+    // Obtener suscripciones para un docente específico
+    const subs = strategy.getActiveSubscriptions("123");
+    expect(subs).toHaveLength(1);
+    expect(subs[0].endpoint).toBe("endpoint1");
+  });
+
+  it("debería obtener todas las suscripciones activas", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+    strategy.addSubscription({
+      docenteId: "456",
+      subscription: { endpoint: "endpoint2" },
+    });
+
+    // Obtener todas las suscripciones
+    const subs = strategy.getActiveSubscriptions();
+    expect(Object.keys(subs)).toHaveLength(2);
+    expect(subs["123"]).toHaveLength(1);
+    expect(subs["456"]).toHaveLength(1);
+  });
+
+  it("debería eliminar una suscripción específica", async () => {
+    // Configurar suscripciones de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint2" },
+    });
+
+    // Eliminar una suscripción específica
+    await strategy.removeSubscription("123", "endpoint1");
+
+    // Verificar que solo quedó una suscripción
+    const subs = strategy.getActiveSubscriptions("123");
+    expect(subs).toHaveLength(1);
+    expect(subs[0].endpoint).toBe("endpoint2");
+  });
+
+  it("debería eliminar el docente cuando no quedan suscripciones", async () => {
+    // Configurar una suscripción de prueba
+    strategy.addSubscription({
+      docenteId: "123",
+      subscription: { endpoint: "endpoint1" },
+    });
+
+    // Eliminar la suscripción
+    await strategy.removeSubscription("123", "endpoint1");
+
+    // Verificar que el docente fue eliminado
+    const subs = strategy.getActiveSubscriptions();
+    expect(subs["123"]).toBeUndefined();
+  });
 });
 
 // Pruebas para la clase abstracta NotificacionStrategy
