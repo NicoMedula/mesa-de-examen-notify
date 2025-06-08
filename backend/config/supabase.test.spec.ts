@@ -12,13 +12,13 @@ describe("Supabase Mock", () => {
     expect(selectResult.data).toEqual([]);
     expect(selectResult.error).toBeNull();
 
-    // Verificar que el mock de insert funciona
+    // Verificar que el mock de insert funciona.
     const insertResult = await fromResult.insert({ test: "data" });
     expect(insertResult).toBeDefined();
     expect(insertResult.data).toEqual([]);
     expect(insertResult.error).toBeNull();
 
-    // Verificar que el mock de update funciona
+    // Verificar que el mock de update funciona.
     const updateResult = await fromResult.update({ test: "updated" });
     expect(updateResult).toBeDefined();
     expect(updateResult.data).toEqual([]);
