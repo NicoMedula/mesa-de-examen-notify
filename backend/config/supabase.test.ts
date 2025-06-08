@@ -1,6 +1,6 @@
 import { DatabaseClient } from "../repositories/MesaRepository";
 
-// Mock del cliente de Supabase para pruebas
+// Mock del cliente de Supabase para pruebas.masc
 export const supabase: DatabaseClient = {
   from: (table: string) => ({
     select: (columns?: string) => Promise.resolve({ data: [], error: null }),
