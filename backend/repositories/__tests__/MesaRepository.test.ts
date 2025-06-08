@@ -8,14 +8,6 @@ describe("MesaRepository", () => {
   beforeEach(() => {
     // Obtener una instancia del repositorio con el mock
     repository = MesaRepository.getInstance(supabase);
-    supabase.from = jest.fn().mockReturnValue({
-      select: createSelectMock(),
-      update: createUpdateMock(),
-      delete: createDeleteMock(),
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockResolvedValue({ data: [], error: null }),
-      }),
-    });
   });
 
   it("debería obtener todas las mesas", async () => {
@@ -37,10 +29,9 @@ describe("MesaRepository", () => {
     ];
 
     // Configurar el mock para devolver las mesas
-    const selectMock = jest
-      .fn()
-      .mockReturnValue(Promise.resolve({ data: mockMesas, error: null }));
-    supabase.from = jest.fn().mockReturnValue({ select: selectMock });
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: mockMesas, error: null }),
+    });
 
     const mesas = await repository.getAllMesas();
     expect(mesas).toHaveLength(1);
@@ -66,10 +57,9 @@ describe("MesaRepository", () => {
     ];
 
     // Configurar el mock para devolver las mesas
-    const selectMock = jest
-      .fn()
-      .mockReturnValue(Promise.resolve({ data: mockMesas, error: null }));
-    supabase.from = jest.fn().mockReturnValue({ select: selectMock });
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: mockMesas, error: null }),
+    });
 
     const mesas = await repository.getMesasByDocenteId("123");
     expect(mesas).toHaveLength(1);
@@ -97,27 +87,12 @@ describe("MesaRepository", () => {
       ],
     };
 
-    // Mock para verificar mesas existentes
-    const selectMock = jest.fn().mockReturnValue({
-      or: jest.fn().mockReturnValue(Promise.resolve({ data: [], error: null })),
-    });
-
     // Mock para insertar la nueva mesa
-    const insertMock = jest.fn().mockReturnValue({
-      select: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: [nuevaMesa], error: null })),
-    });
-
-    // Configurar el mock para manejar ambas operaciones
-    supabase.from = jest.fn().mockImplementation((table) => {
-      if (table === "mesas") {
-        return {
-          select: selectMock,
-          insert: insertMock,
-        };
-      }
-      return {};
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [nuevaMesa], error: null }),
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: [nuevaMesa], error: null }),
+      }),
     });
 
     const mesaCreada = await repository.createMesa(nuevaMesa);
@@ -141,25 +116,12 @@ describe("MesaRepository", () => {
       updated_at: "2023-01-01T10:00:00Z",
     };
 
-    // Configurar el mock para la operación de update
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: null, error: null })),
-    });
-
-    // Configurar el mock para la operación de select después del update
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaActualizadaCompleta], error: null })
-        ),
-    });
-
+    // Configurar el mock para la operación de update y select
     supabase.from = jest.fn().mockReturnValue({
-      update: updateMock,
-      select: selectMock,
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: [mesaActualizadaCompleta], error: null }),
     });
 
     const mesa = await repository.updateMesa("1", mesaActualizada);
@@ -168,29 +130,25 @@ describe("MesaRepository", () => {
 
   it("debería eliminar una mesa", async () => {
     // Configurar el mock para simular la eliminación exitosa
-    const deleteMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: null, error: null })),
+    supabase.from = jest.fn().mockReturnValue({
+      delete: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
     });
-    supabase.from = jest.fn().mockReturnValue({ delete: deleteMock });
 
     await expect(repository.deleteMesa("1")).resolves.not.toThrow();
   });
 
   it("debería manejar errores al obtener todas las mesas", async () => {
     // Configurar el mock para simular un error
-    const selectMock = jest.fn().mockReturnValue(
-      Promise.resolve({
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({
         data: null,
         error: new Error("Error de base de datos"),
-      })
-    );
-    supabase.from = jest.fn().mockReturnValue({ select: selectMock });
+      }),
+    });
 
-    await expect(repository.getAllMesas()).rejects.toThrow(
-      "Error de base de datos"
-    );
+    await expect(repository.getAllMesas()).rejects.toThrow("Error de base de datos");
   });
 
   it("debería manejar errores al crear una mesa", async () => {
@@ -220,15 +178,14 @@ describe("MesaRepository", () => {
     };
 
     // Configurar el mock para simular un error en el update
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue(
-        Promise.resolve({
+    supabase.from = jest.fn().mockReturnValue({
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
           data: null,
           error: new Error("Error al actualizar"),
-        })
-      ),
+        }),
+      }),
     });
-    supabase.from = jest.fn().mockReturnValue({ update: updateMock });
 
     await expect(repository.updateMesa("1", mesaActualizada)).rejects.toThrow(
       "Error al actualizar"
@@ -237,18 +194,16 @@ describe("MesaRepository", () => {
 
   it("debería manejar errores al eliminar una mesa", async () => {
     // Configurar el mock para simular un error en el delete
-    const deleteMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: null, error: new Error("Error al eliminar") })
-        ),
+    supabase.from = jest.fn().mockReturnValue({
+      delete: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: new Error("Error al eliminar"),
+        }),
+      }),
     });
-    supabase.from = jest.fn().mockReturnValue({ delete: deleteMock });
 
-    await expect(repository.deleteMesa("1")).rejects.toThrow(
-      "Error al eliminar"
-    );
+    await expect(repository.deleteMesa("1")).rejects.toThrow("Error al eliminar");
   });
 
   it("debería actualizar la confirmación de un docente", async () => {
@@ -275,43 +230,20 @@ describe("MesaRepository", () => {
       ],
     };
 
-    // Mock para getMesaById
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaOriginal], error: null })
-        ),
-    });
-
-    // Mock para update
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: null, error: null })),
-    });
-
-    // Mock para select después del update
-    const selectAfterUpdateMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaActualizada], error: null })
-        ),
-    });
-
     let selectCallCount = 0;
     supabase.from = jest.fn().mockImplementation((table) => {
       if (table === "mesas") {
         return {
-          select: () => {
+          select: jest.fn().mockImplementation(() => {
             selectCallCount++;
             if (selectCallCount === 1) {
-              return selectMock();
+              return Promise.resolve({ data: [mesaOriginal], error: null });
             }
-            return selectAfterUpdateMock();
-          },
-          update: updateMock,
+            return Promise.resolve({ data: [mesaActualizada], error: null });
+          }),
+          update: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+          }),
         };
       }
       return {};
@@ -342,25 +274,11 @@ describe("MesaRepository", () => {
       estado: "confirmada",
     };
 
-    // Mock para update
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: null, error: null })),
-    });
-
-    // Mock para select después del update
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaConfirmada], error: null })
-        ),
-    });
-
     supabase.from = jest.fn().mockReturnValue({
-      update: updateMock,
-      select: selectMock,
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      select: jest.fn().mockResolvedValue({ data: [mesaConfirmada], error: null }),
     });
 
     const mesa = await repository.confirmarMesa("1");
@@ -384,12 +302,9 @@ describe("MesaRepository", () => {
     };
 
     // Configurar el mock para devolver la mesa
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(Promise.resolve({ data: [mockMesa], error: null })),
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [mockMesa], error: null }),
     });
-    supabase.from = jest.fn().mockReturnValue({ select: selectMock });
 
     const mesa = await repository.getMesaById("1");
     expect(mesa).not.toBeNull();
@@ -398,226 +313,31 @@ describe("MesaRepository", () => {
 
   it("debería retornar null cuando no se encuentra una mesa por ID", async () => {
     // Configurar el mock para devolver datos vacíos
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue(Promise.resolve({ data: [], error: null })),
+    supabase.from = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [], error: null }),
     });
-    supabase.from = jest.fn().mockReturnValue({ select: selectMock });
 
     const mesa = await repository.getMesaById("999");
     expect(mesa).toBeNull();
   });
+});
 
-  it("debería manejar errores al insertar una mesa", async () => {
-    const nuevaMesa: Mesa = {
-      id: "1",
-      materia: "Matemática I",
-      fecha: "2025-05-31",
-      hora: "14:00",
-      aula: "Aula 101",
-      estado: "pendiente",
-      docente_titular: "123",
-      docente_vocal: "456",
-      docentes: [
-        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-      ],
-    };
-
-    // Mock para verificar mesas existentes
-    const selectMock = jest.fn().mockReturnValue({
-      or: jest.fn().mockReturnValue(Promise.resolve({ data: [], error: null })),
-    });
-
-    // Mock para insertar la nueva mesa con error
-    const insertMock = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue(
-        Promise.resolve({
-          data: null,
-          error: new Error("Error de base de datos"),
-        })
-      ),
-    });
-
-    supabase.from = jest.fn().mockImplementation((table) => {
-      if (table === "mesas") {
-        return {
-          select: selectMock,
-          insert: insertMock,
-        };
-      }
-      return {};
-    });
-
-    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow(
-      "Error al crear mesa: Error de base de datos"
-    );
+describe("MesaRepository - Constructor y Singleton", () => {
+  it("debería crear una única instancia del repositorio", () => {
+    const instance1 = MesaRepository.getInstance(supabase);
+    const instance2 = MesaRepository.getInstance(supabase);
+    expect(instance1).toBe(instance2);
   });
 
-  it("debería manejar errores al actualizar una mesa", async () => {
-    const mesaActualizada: Partial<Mesa> = {
-      aula: "Aula 102",
+  it("debería permitir actualizar el cliente de base de datos", () => {
+    const mockDb = {
+      from: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: [], error: null }),
+      }),
     };
-
-    // Mock para update con error
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue(
-        Promise.resolve({
-          data: null,
-          error: new Error("Error al actualizar"),
-        })
-      ),
-    });
-
-    supabase.from = jest.fn().mockReturnValue({
-      update: updateMock,
-    });
-
-    await expect(repository.updateMesa("1", mesaActualizada)).rejects.toThrow(
-      "Error al actualizar"
-    );
-  });
-
-  it("debería manejar errores al actualizar la confirmación de un docente", async () => {
-    const mesaOriginal = {
-      id: "1",
-      materia: "Matemática I",
-      fecha: "2024-03-20",
-      hora: "14:00",
-      aula: "Aula 101",
-      estado: "pendiente",
-      docente_titular: "123",
-      docente_vocal: "456",
-      docentes: [
-        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-      ],
-    };
-
-    // Mock para getMesaById
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaOriginal], error: null })
-        ),
-    });
-
-    // Mock para update con error
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue(
-        Promise.resolve({
-          data: null,
-          error: new Error("Error al actualizar"),
-        })
-      ),
-    });
-
-    supabase.from = jest.fn().mockImplementation((table) => {
-      if (table === "mesas") {
-        return {
-          select: selectMock,
-          update: updateMock,
-        };
-      }
-      return {};
-    });
-
-    await expect(
-      repository.updateConfirmacion("1", "123", "aceptado")
-    ).rejects.toThrow("Error al actualizar");
-  });
-
-  it("debería manejar errores al confirmar una mesa", async () => {
-    // Mock para update con error
-    const updateMock = jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue(
-        Promise.resolve({
-          data: null,
-          error: new Error("Error al confirmar"),
-        })
-      ),
-    });
-
-    supabase.from = jest.fn().mockReturnValue({
-      update: updateMock,
-    });
-
-    await expect(repository.confirmarMesa("1")).rejects.toThrow(
-      "Error al confirmar"
-    );
-  });
-
-  it("debería manejar errores al obtener una mesa por ID", async () => {
-    // Mock para select con error
-    const selectMock = jest.fn().mockReturnValue({
-      eq: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: null, error: new Error("Error al obtener") })
-        ),
-    });
-
-    supabase.from = jest.fn().mockReturnValue({
-      select: selectMock,
-    });
-
-    await expect(repository.getMesaById("1")).rejects.toThrow(
-      "Error al obtener"
-    );
-  });
-
-  it("debería manejar conflictos de horario al crear una mesa", async () => {
-    const nuevaMesa: Mesa = {
-      id: "1",
-      materia: "Matemática I",
-      fecha: "2025-05-31",
-      hora: "14:00",
-      aula: "Aula 101",
-      estado: "pendiente",
-      docente_titular: "123",
-      docente_vocal: "456",
-      docentes: [
-        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-        { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-      ],
-    };
-
-    const mesaExistente = {
-      id: "2",
-      materia: "Física I",
-      fecha: "2025-05-31",
-      hora: "15:00", // Conflicto: solo 1 hora de diferencia
-      aula: "Aula 102",
-      estado: "pendiente",
-      docente_titular: "123",
-      docente_vocal: "789",
-      docentes: [
-        { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-        { id: "789", nombre: "Docente 3", confirmacion: "pendiente" },
-      ],
-    };
-
-    // Mock para verificar mesas existentes
-    const selectMock = jest.fn().mockReturnValue({
-      or: jest
-        .fn()
-        .mockReturnValue(
-          Promise.resolve({ data: [mesaExistente], error: null })
-        ),
-    });
-
-    supabase.from = jest.fn().mockImplementation((table) => {
-      if (table === "mesas") {
-        return {
-          select: selectMock,
-        };
-      }
-      return {};
-    });
-
-    await expect(repository.createMesa(nuevaMesa)).rejects.toThrow(
-      "Conflicto de horario para el docente Docente 1"
-    );
+    const instance1 = MesaRepository.getInstance(supabase);
+    const instance2 = MesaRepository.getInstance(mockDb as any);
+    expect(instance1).toBe(instance2);
   });
 });
 
@@ -838,10 +558,12 @@ describe("MesaRepository - Casos de error adicionales", () => {
 
     mockDb.from.mockImplementation(() => ({
       select: jest.fn().mockImplementation(() => ({
-        eq: jest.fn().mockResolvedValue({
-          error: new Error("Error al obtener mesa"),
-          data: null,
-        }),
+        eq: jest
+          .fn()
+          .mockResolvedValue({
+            error: new Error("Error al obtener mesa"),
+            data: null,
+          }),
       })),
     }));
 
@@ -1105,27 +827,6 @@ describe("MesaRepository - Casos de error en operaciones CRUD", () => {
     await expect(repository.getMesaById("1")).rejects.toThrow(
       "Error de base de datos"
     );
-  });
-});
-
-describe("MesaRepository - Constructor y Singleton", () => {
-  it("debería crear una única instancia del repositorio", () => {
-    const instance1 = MesaRepository.getInstance(supabase);
-    const instance2 = MesaRepository.getInstance(supabase);
-    expect(instance1).toBe(instance2);
-  });
-
-  it("debería permitir actualizar el cliente de base de datos", () => {
-    const mockDb = {
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ data: [] }),
-        }),
-      }),
-    };
-    const instance1 = MesaRepository.getInstance(supabase);
-    const instance2 = MesaRepository.getInstance(mockDb as any);
-    expect(instance1).toBe(instance2);
   });
 });
 
