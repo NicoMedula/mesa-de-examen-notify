@@ -2,7 +2,7 @@ import { supabase } from "./supabase.test";
 
 describe("Supabase Mock", () => {
   it("debería proporcionar un mock funcional para operaciones de base de datos", async () => {
-    // Verificar que el mock de from funciona
+    // Verificar que el mock de from funciona.
     const fromResult = supabase.from("test-table");
     expect(fromResult).toBeDefined();
 
