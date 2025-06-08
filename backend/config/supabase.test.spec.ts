@@ -24,7 +24,7 @@ describe("Supabase Mock", () => {
     expect(updateResult.data).toEqual([]);
     expect(updateResult.error).toBeNull();
 
-    // Verificar que el mock de delete funciona
+    // Verificar que el mock de delete funciona.
     const deleteResult = await fromResult.delete();
     expect(deleteResult).toBeDefined();
     expect(deleteResult.data).toBeNull();
