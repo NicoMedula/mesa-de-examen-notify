@@ -1064,22 +1064,24 @@ const DepartamentoDashboard: React.FC = () => {
                                   >
                                     Cancelar
                                   </button>
-                                  <button
+                                  {/* Botón de Recordatorios eliminado */}
+                                  {/* <button
                                     className="btn btn-info btn-sm"
                                     onClick={() =>
                                       handleShowRecordatorioModal(mesa)
                                     }
                                   >
                                     Recordatorios
-                                  </button>
-                                  <button
+                                  </button> */}
+                                  {/* Botón de Enviar Recordatorio eliminado */}
+                                  {/* <button
                                     className="btn btn-primary btn-sm"
                                     onClick={() =>
                                       handleSendRecordatorio(mesa.id)
                                     }
                                   >
                                     Enviar Recordatorio
-                                  </button>
+                                  </button> */}
                                 </div>
                               </td>
                             </tr>
@@ -1286,99 +1288,18 @@ const DepartamentoDashboard: React.FC = () => {
       </div>
 
       {/* Modal de Recordatorios */}
-      {showRecordatorioModal && selectedMesa && (
+      {/* {showRecordatorioModal && selectedMesa && (
         <div className="modal show d-block" tabIndex={-1} role="dialog">
-          <div className="modal-dialog" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  Recordatorios para {selectedMesa.materia}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCloseRecordatorioModal}
-                  aria-label="Close"
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label htmlFor="horasAntes" className="form-label">
-                    Horas antes del examen
-                  </label>
-                  <select
-                    id="horasAntes"
-                    className="form-select"
-                    value={horasAntes}
-                    onChange={(e) => setHorasAntes(Number(e.target.value))}
-                  >
-                    <option value="24">24 horas</option>
-                    <option value="48">48 horas</option>
-                    <option value="72">72 horas</option>
-                  </select>
-                </div>
-
-                <button
-                  className="btn btn-primary mb-3"
-                  onClick={handleCreateRecordatorio}
-                >
-                  Crear Recordatorio
-                </button>
-
-                {recordatorios.length > 0 ? (
-                  <div>
-                    <h6>Recordatorios programados:</h6>
-                    <ul className="list-group">
-                      {recordatorios.map((recordatorio) => (
-                        <li
-                          key={recordatorio.id}
-                          className="list-group-item d-flex justify-content-between align-items-center"
-                        >
-                          <span>
-                            {recordatorio.horas_antes} horas antes
-                            {recordatorio.enviado && (
-                              <span className="badge bg-success ms-2">
-                                Enviado
-                              </span>
-                            )}
-                          </span>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() =>
-                              handleDeleteRecordatorio(recordatorio.id)
-                            }
-                          >
-                            Eliminar
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p>No hay recordatorios programados.</p>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCloseRecordatorioModal}
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
+          ...
         </div>
       )}
 
-      {/* Overlay para el modal */}
       {showRecordatorioModal && (
         <div
           className="modal-backdrop fade show"
           onClick={handleCloseRecordatorioModal}
         ></div>
-      )}
+      )} */}
     </div>
   );
 };

@@ -157,24 +157,7 @@ const Login: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                  <div className="mt-1 text-end">
-                    <Link
-                      to="/forgot-password"
-                      className="text-decoration-none small"
-                    >
-                      ¿Olvidó su contraseña?
-                    </Link>
-                  </div>
                 </div>
-                {/* Mensaje informativo */}
-                <div className="mb-3">
-                  <small className="form-text text-muted">
-                    Para departamento use: departamento@ejemplo.com
-                    <br />
-                    Para docentes use su correo electrónico institucional
-                  </small>
-                </div>
-
                 <div className="d-grid gap-2">
                   <button
                     type="submit"
