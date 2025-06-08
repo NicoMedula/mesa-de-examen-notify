@@ -13,20 +13,23 @@ import {
 // Patrón Dependency Injection: Se puede inyectar la estrategia deseada
 export class MesaService {
   private static instance: MesaService;
-  private mesaRepository: MesaRepository;
-  // La estrategia se declara con el tipo de la interfaz, no una clase concreta
-  // Esto permite inyectar diferentes implementaciones
   private notificacionStrategy: NotificacionStrategy;
+  private mesaRepository: MesaRepository;
 
-  private constructor() {
+  constructor(notificacionStrategy: NotificacionStrategy) {
     this.mesaRepository = MesaRepository.getInstance();
-    // Inicialmente se asigna una estrategia por defecto, pero esto puede cambiarse más adelante
-    this.notificacionStrategy = WebSocketNotificacionStrategy.getInstance();
+    this.notificacionStrategy = notificacionStrategy;
   }
 
-  public static getInstance(): MesaService {
+  public static getInstance(notificacionStrategy?: NotificacionStrategy): MesaService {
     if (!MesaService.instance) {
-      MesaService.instance = new MesaService();
+      let strategy: NotificacionStrategy;
+      if (!notificacionStrategy) {
+        strategy = WebSocketNotificacionStrategy.getInstance();
+      } else {
+        strategy = notificacionStrategy;
+      }
+      MesaService.instance = new MesaService(strategy);
     }
     return MesaService.instance;
   }

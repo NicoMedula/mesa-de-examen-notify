@@ -4,71 +4,22 @@ import { supabase } from "../../config/supabase.test";
 
 describe("Flujo de Mesas", () => {
   let repo: MesaRepository;
+  let supabase: any;
 
   beforeEach(() => {
-    // Usar el mock de Supabase para pruebas
-    repo = MesaRepository.getInstance(supabase);
-    
-    // Configurar mocks para las operaciones que se usarán en las pruebas
-    supabase.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        data: [],
-        error: null,
-        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-        or: jest.fn().mockResolvedValue({ data: [], error: null }),
+    supabase = {
+      from: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({ data: [], error: null, eq: jest.fn().mockResolvedValue({ data: [], error: null }), or: jest.fn().mockResolvedValue({ data: [], error: null }) }),
+        insert: jest.fn().mockReturnValue({ select: jest.fn().mockResolvedValue({ data: [{ id: "test-id", materia: "Test Materia", fecha: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), hora: "14:00", aula: "Aula Test", estado: "pendiente", docente_titular: "123", docente_vocal: "456", docentes: [ { id: "123", nombre: "Docente 1", confirmacion: "pendiente" }, { id: "456", nombre: "Docente 2", confirmacion: "pendiente" } ] }], error: null }) }),
+        update: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ data: [{ id: "test-id", materia: "Test Materia", fecha: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), hora: "14:00", aula: "Aula Test", estado: "pendiente", docente_titular: "123", docente_vocal: "456", docentes: [ { id: "123", nombre: "Docente 1", confirmacion: "aceptado" }, { id: "456", nombre: "Docente 2", confirmacion: "aceptado" } ] }], error: null }) }),
+        delete: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
       }),
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockImplementation(() => {
-          return Promise.resolve({
-            data: [
-              {
-                id: "test-id",
-                materia: "Test Materia",
-                fecha: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-                hora: "14:00",
-                aula: "Aula Test",
-                estado: "pendiente",
-                docente_titular: "123",
-                docente_vocal: "456",
-                docentes: [
-                  { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-                  { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-                ],
-              },
-            ],
-            error: null,
-          });
-        }),
-      }),
-      update: jest.fn().mockReturnValue({
-        eq: jest.fn().mockImplementation((column, value) => {
-          // Simular actualización de confirmación de docente
-          if (column === "id") {
-            const docente_id = value; // En realidad esto sería el ID de la mesa
-            return Promise.resolve({
-              data: [
-                {
-                  id: docente_id,
-                  materia: "Test Materia",
-                  fecha: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-                  hora: "14:00",
-                  aula: "Aula Test",
-                  estado: "pendiente",
-                  docente_titular: "123",
-                  docente_vocal: "456",
-                  docentes: [
-                    { id: "123", nombre: "Docente 1", confirmacion: "aceptado" },
-                    { id: "456", nombre: "Docente 2", confirmacion: "aceptado" },
-                  ],
-                },
-              ],
-              error: null,
-            });
-          }
-          return Promise.resolve({ data: [], error: null });
-        }),
-      }),
-    });
+      supabaseUrl: '',
+      supabaseKey: '',
+      auth: {},
+      realtime: {}
+    };
+    repo = MesaRepository.getInstance(supabase as any);
   });
 
   it("debería crear una nueva mesa desde el departamento", async () => {

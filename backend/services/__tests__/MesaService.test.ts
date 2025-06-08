@@ -4,7 +4,9 @@ import {
   PushNotificacionStrategy,
 } from "../../strategies/NotificacionStrategy";
 import { MesaRepository } from "../../repositories/MesaRepository";
-import { Mesa } from "../../types";
+import { Mesa, Docente, EstadoMesa, EstadoConfirmacion } from "../../types";
+import { WebSocketNotificacionStrategy } from "../../strategies/NotificacionStrategy";
+import { NotificacionFactory } from "../../factories/NotificacionFactory";
 
 // Mock de PushNotificacionStrategy
 jest.mock("../../strategies/NotificacionStrategy", () => {
@@ -26,102 +28,9 @@ jest.mock("../../strategies/NotificacionStrategy", () => {
   };
 });
 
-// Mock del repositorio
-jest.mock("../../repositories/MesaRepository", () => {
-  return {
-    MesaRepository: {
-      getInstance: jest.fn().mockReturnValue({
-        getMesasByDocenteId: jest.fn().mockResolvedValue([
-          {
-            id: "M1",
-            materia: "Matemáticas",
-            fecha: "2023-01-01",
-            hora: "10:00",
-            aula: "Aula 1",
-            estado: "pendiente",
-            docente_titular: "123",
-            docente_vocal: "456",
-            docentes: [
-              { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-              { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-            ],
-          },
-        ]),
-        updateConfirmacion: jest
-          .fn()
-          .mockImplementation((mesaId, docenteId, confirmacion) => {
-            return Promise.resolve({
-              id: mesaId,
-              materia: "Matemáticas",
-              fecha: "2023-01-01",
-              hora: "10:00",
-              aula: "Aula 1",
-              estado: "pendiente",
-              docente_titular: "123",
-              docente_vocal: "456",
-              docentes: [
-                {
-                  id: "123",
-                  nombre: "Docente 1",
-                  confirmacion:
-                    docenteId === "123" ? confirmacion : "pendiente",
-                },
-                {
-                  id: "456",
-                  nombre: "Docente 2",
-                  confirmacion:
-                    docenteId === "456" ? confirmacion : "pendiente",
-                },
-              ],
-            });
-          }),
-        getAllMesas: jest.fn().mockResolvedValue([
-          {
-            id: "M1",
-            materia: "Matemáticas",
-            fecha: "2023-01-01",
-            hora: "10:00",
-            aula: "Aula 1",
-            estado: "pendiente",
-            docente_titular: "123",
-            docente_vocal: "456",
-            docentes: [
-              { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-              { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-            ],
-          },
-        ]),
-        createMesa: jest.fn().mockImplementation((mesa: Mesa) => {
-          return Promise.resolve({
-            ...mesa,
-            id: "M-new",
-          });
-        }),
-        updateMesa: jest
-          .fn()
-          .mockImplementation(
-            (mesaId: string, mesaActualizada: Partial<Mesa>) => {
-              return Promise.resolve({
-                id: mesaId,
-                materia: "Matemáticas",
-                fecha: "2023-01-01",
-                hora: "10:00",
-                aula: "Aula 1",
-                estado: mesaActualizada.estado || "pendiente",
-                docente_titular: "123",
-                docente_vocal: "456",
-                docentes: [
-                  { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-                  { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-                ],
-              });
-            }
-          ),
-        deleteMesa: jest.fn().mockResolvedValue(undefined),
-      }),
-    },
-  };
-});
+// Mock de MesaRepository
+jest.mock("../../repositories/MesaRepository");
+const mockMesaRepositoryClass = MesaRepository as jest.MockedClass<typeof MesaRepository>;
 
 // Mock de la estrategia de notificación
 const mockEnviar = jest.fn().mockResolvedValue(undefined);
@@ -140,123 +49,199 @@ afterAll(() => {
 
 describe("MesaService", () => {
   let mesaService: MesaService;
+  let mockMesaRepository: jest.Mocked<MesaRepository>;
+  let mockWebSocketStrategy: jest.Mocked<WebSocketNotificacionStrategy>;
+  let mockConsoleStrategy: jest.Mocked<ConsoleNotificacionStrategy>;
+  let mockPushStrategy: jest.Mocked<PushNotificacionStrategy>;
+
+  const mockMesa: Mesa = {
+    id: "1",
+    materia: "Matemática I",
+    fecha: "2024-03-20",
+    hora: "14:00",
+    aula: "Aula 101",
+    estado: "pendiente" as EstadoMesa,
+    docente_titular: "123",
+    docente_vocal: "456",
+    docentes: [
+      {
+        id: "123",
+        nombre: "Docente 1",
+        confirmacion: "pendiente" as EstadoConfirmacion
+      },
+      {
+        id: "456",
+        nombre: "Docente 2",
+        confirmacion: "pendiente" as EstadoConfirmacion
+      }
+    ]
+  };
 
   beforeEach(() => {
     // Limpiar mocks
     jest.clearAllMocks();
 
-    // Obtener instancia del servicio
-    mesaService = MesaService.getInstance();
+    // Configurar mocks
+    mockMesaRepository = {
+      getMesasByDocenteId: jest.fn().mockResolvedValue([mockMesa]),
+      updateConfirmacion: jest.fn().mockResolvedValue(mockMesa),
+      getAllMesas: jest.fn().mockResolvedValue([mockMesa]),
+      createMesa: jest.fn().mockResolvedValue(mockMesa),
+      updateMesa: jest.fn().mockResolvedValue(mockMesa),
+      deleteMesa: jest.fn().mockResolvedValue(undefined),
+      getMesaById: jest.fn().mockResolvedValue(mockMesa),
+      confirmarMesa: jest.fn().mockResolvedValue(mockMesa)
+    } as unknown as jest.Mocked<MesaRepository>;
 
-    // Inyectar la estrategia mock
-    mesaService.setNotificacionStrategy(mockConsoleStrategy as any);
+    mockWebSocketStrategy = {
+      enviar: jest.fn(),
+      setSocketIO: jest.fn()
+    } as unknown as jest.Mocked<WebSocketNotificacionStrategy>;
+
+    mockConsoleStrategy = {
+      enviar: jest.fn()
+    } as unknown as jest.Mocked<ConsoleNotificacionStrategy>;
+
+    mockPushStrategy = {
+      enviar: jest.fn(),
+      addSubscription: jest.fn(),
+      removeSubscription: jest.fn(),
+      getActiveSubscriptions: jest.fn(),
+      cleanupExpiredSubscriptions: jest.fn()
+    } as unknown as jest.Mocked<PushNotificacionStrategy>;
+
+    // Configurar instancias mock
+    jest.spyOn(MesaRepository, "getInstance").mockReturnValue(mockMesaRepository);
+    WebSocketNotificacionStrategy.getInstance = jest.fn().mockReturnValue(mockWebSocketStrategy);
+    PushNotificacionStrategy.getInstance = jest.fn().mockReturnValue(mockPushStrategy);
+
+    // Configurar mock de NotificacionFactory
+    NotificacionFactory.crearNotificacionConfirmacion = jest.fn().mockReturnValue({
+      tipo: "confirmacion",
+      mensaje: "Test message",
+      timestamp: new Date()
+    });
+    NotificacionFactory.crearNotificacionRecordatorio = jest.fn().mockReturnValue({
+      tipo: "recordatorio",
+      mensaje: "Test message",
+      timestamp: new Date()
+    });
+    NotificacionFactory.crearNotificacionActualizacion = jest.fn().mockReturnValue({
+      tipo: "actualizacion",
+      mensaje: "Test message",
+      timestamp: new Date()
+    });
+
+    // Crear instancia del servicio
+    mesaService = MesaService.getInstance(mockWebSocketStrategy);
   });
 
-  describe("getMesasByDocenteId", () => {
-    it("debería retornar las mesas de un docente específico", async () => {
-      const mesas = await mesaService.getMesasByDocenteId("123");
-      expect(mesas).toBeDefined();
-      expect(Array.isArray(mesas)).toBe(true);
-      expect(
-        mesas.every((mesa) =>
-          mesa.docentes.some((docente) => docente.id === "123")
-        )
-      ).toBe(true);
-    });
+  it("debería ser un singleton", () => {
+    const instance1 = MesaService.getInstance();
+    const instance2 = MesaService.getInstance();
+    expect(instance1).toBe(instance2);
   });
 
-  describe("confirmarMesa", () => {
-    it("debería confirmar una mesa correctamente", async () => {
-      const mesa = await mesaService.confirmarMesa("M1", "123", "aceptado");
-      expect(mesa).toBeDefined();
-      const docente = mesa.docentes.find((d) => d.id === "123");
-      expect(docente?.confirmacion).toBe("aceptado");
-      expect(mockEnviar).toHaveBeenCalled();
-    });
-
-    it("debería rechazar una mesa correctamente", async () => {
-      const mesa = await mesaService.confirmarMesa("M1", "123", "rechazado");
-      expect(mesa).toBeDefined();
-      const docente = mesa.docentes.find((d) => d.id === "123");
-      expect(docente?.confirmacion).toBe("rechazado");
-      expect(mockEnviar).toHaveBeenCalled();
-    });
+  it("debería obtener mesas por ID de docente", async () => {
+    const result = await mesaService.getMesasByDocenteId("123");
+    expect(result).toEqual([mockMesa]);
+    expect(mockMesaRepository.getMesasByDocenteId).toHaveBeenCalledWith("123");
   });
 
-  describe("enviarRecordatorio", () => {
-    it("debería enviar un recordatorio sin errores", async () => {
-      await expect(mesaService.enviarRecordatorio("M1")).resolves.not.toThrow();
-      expect(mockEnviar).toHaveBeenCalled();
-    });
+  it("debería confirmar una mesa", async () => {
+    const mesaActualizada: Mesa = {
+      ...mockMesa,
+      docentes: [
+        { ...mockMesa.docentes[0], confirmacion: "aceptado" as EstadoConfirmacion },
+        mockMesa.docentes[1]
+      ]
+    };
+    mockMesaRepository.updateConfirmacion.mockResolvedValue(mesaActualizada);
+
+    const result = await mesaService.confirmarMesa("1", "123", "aceptado");
+    expect(result).toEqual(mesaActualizada);
+    expect(mockMesaRepository.updateConfirmacion).toHaveBeenCalledWith("1", "123", "aceptado");
+    expect(mockWebSocketStrategy.enviar).toHaveBeenCalled();
   });
 
-  describe("createMesa", () => {
-    it("debería crear una mesa correctamente", async () => {
-      const nuevaMesa: Mesa = {
-        id: "",
-        materia: "Nueva Materia",
-        fecha: "2023-01-01",
-        hora: "10:00",
-        aula: "Aula 1",
-        estado: "pendiente",
-        docente_titular: "123",
-        docente_vocal: "456",
-        docentes: [
-          { id: "123", nombre: "Docente 1", confirmacion: "pendiente" },
-          { id: "456", nombre: "Docente 2", confirmacion: "pendiente" },
-        ],
-      };
+  it("debería enviar recordatorio", async () => {
+    const mesaConfirmada: Mesa = {
+      ...mockMesa,
+      estado: "confirmada" as EstadoMesa
+    };
+    mockMesaRepository.getAllMesas.mockResolvedValue([mesaConfirmada]);
 
-      const mesa = await mesaService.createMesa(nuevaMesa);
-      expect(mesa).toBeDefined();
-      expect(mesa.id).toBe("M-new");
-    });
+    await mesaService.enviarRecordatorio("1");
+    expect(mockWebSocketStrategy.enviar).toHaveBeenCalled();
   });
 
-  describe("updateMesa", () => {
-    it("debería actualizar una mesa correctamente", async () => {
-      const mesaActualizada: Partial<Mesa> = {
-        estado: "confirmada",
-      };
-
-      const mesa = await mesaService.updateMesa("M1", mesaActualizada);
-      expect(mesa).toBeDefined();
-      expect(mesa.estado).toBe("confirmada");
-    });
-
-    it("debería actualizar una mesa a pendiente correctamente", async () => {
-      const mesaActualizada: Partial<Mesa> = {
-        estado: "pendiente",
-      };
-
-      const mesa = await mesaService.updateMesa("M1", mesaActualizada);
-      expect(mesa).toBeDefined();
-      expect(mesa.estado).toBe("pendiente");
-    });
-
-    it("debería actualizar una mesa sin cambiar estado", async () => {
-      const mesaActualizada: Partial<Mesa> = {
-        aula: "Aula Nueva",
-      };
-
-      const mesa = await mesaService.updateMesa("M1", mesaActualizada);
-      expect(mesa).toBeDefined();
-      expect(mesa.aula).toBe("Aula 1"); // No cambia porque el mock siempre devuelve lo mismo
-    });
+  it("debería crear una mesa", async () => {
+    const result = await mesaService.createMesa(mockMesa);
+    expect(result).toEqual(mockMesa);
+    expect(mockMesaRepository.createMesa).toHaveBeenCalledWith(mockMesa);
+    expect(mockPushStrategy.enviar).toHaveBeenCalled();
   });
 
-  describe("deleteMesa", () => {
-    it("debería eliminar una mesa sin errores", async () => {
-      await expect(mesaService.deleteMesa("M1")).resolves.not.toThrow();
-    });
+  it("debería actualizar una mesa", async () => {
+    const mesaActualizada: Mesa = {
+      ...mockMesa,
+      aula: "Aula 102"
+    };
+    mockMesaRepository.updateMesa.mockResolvedValue(mesaActualizada);
+
+    const result = await mesaService.updateMesa("1", { aula: "Aula 102" });
+    expect(result).toEqual(mesaActualizada);
+    expect(mockMesaRepository.updateMesa).toHaveBeenCalledWith("1", { aula: "Aula 102" });
   });
 
-  describe("getAllMesas", () => {
-    it("debería obtener todas las mesas", async () => {
-      const mesas = await mesaService.getAllMesas();
-      expect(mesas).toBeDefined();
-      expect(Array.isArray(mesas)).toBe(true);
-      expect(mesas.length).toBeGreaterThan(0);
-    });
+  it("debería eliminar una mesa", async () => {
+    await mesaService.deleteMesa("1");
+    expect(mockMesaRepository.deleteMesa).toHaveBeenCalledWith("1");
+  });
+
+  it("debería obtener todas las mesas", async () => {
+    const result = await mesaService.getAllMesas();
+    expect(result).toEqual([mockMesa]);
+    expect(mockMesaRepository.getAllMesas).toHaveBeenCalled();
+  });
+
+  it("debería cambiar la estrategia de notificación", async () => {
+    mesaService.setNotificacionStrategy(mockConsoleStrategy);
+    await mesaService.confirmarMesa("1", "123", "aceptado");
+    expect(mockConsoleStrategy.enviar).toHaveBeenCalled();
+  });
+
+  it("debería manejar errores al confirmar mesa", async () => {
+    const error = new Error("Error de base de datos");
+    mockMesaRepository.updateConfirmacion.mockRejectedValue(error);
+    await expect(mesaService.confirmarMesa("1", "123", "aceptado")).rejects.toThrow(error);
+  });
+
+  it("debería notificar cuando ambos docentes aceptan", async () => {
+    const mesaConAmbosAceptados: Mesa = {
+      ...mockMesa,
+      docentes: [
+        { ...mockMesa.docentes[0], confirmacion: "aceptado" as EstadoConfirmacion },
+        { ...mockMesa.docentes[1], confirmacion: "aceptado" as EstadoConfirmacion }
+      ]
+    };
+    mockMesaRepository.updateConfirmacion.mockResolvedValue(mesaConAmbosAceptados);
+
+    await mesaService.confirmarMesa("1", "123", "aceptado");
+    expect(mockPushStrategy.enviar).toHaveBeenCalledTimes(2); // Una para docentes y otra para departamento
+  });
+
+  it("debería notificar cuando un docente rechaza", async () => {
+    const mesaConRechazo: Mesa = {
+      ...mockMesa,
+      docentes: [
+        { ...mockMesa.docentes[0], confirmacion: "rechazado" as EstadoConfirmacion },
+        mockMesa.docentes[1]
+      ]
+    };
+    mockMesaRepository.updateConfirmacion.mockResolvedValue(mesaConRechazo);
+
+    await mesaService.confirmarMesa("1", "123", "rechazado");
+    expect(mockPushStrategy.enviar).toHaveBeenCalledTimes(2); // Una para el otro docente y otra para departamento
   });
 });

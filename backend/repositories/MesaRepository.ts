@@ -1,4 +1,5 @@
 import { Mesa } from "../types";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 // Interfaz para el cliente de base de datos
 export interface DatabaseClient {
@@ -26,25 +27,23 @@ export interface DatabaseClient {
 // Patrón Repository: Encapsula el acceso a los datos de mesas
 export class MesaRepository {
   private static instance: MesaRepository;
-  private db: DatabaseClient;
+  private db: SupabaseClient;
 
-  /* istanbul ignore next */
-  private constructor(db?: DatabaseClient) {
-    if (db) {
-      this.db = db;
-    } else {
-      // Solo importar y usar Supabase en producción
-      const { supabase } = require("../config/supabase");
-      this.db = supabase;
-    }
+  constructor(db: SupabaseClient) {
+    this.db = db;
   }
 
-  public static getInstance(db?: DatabaseClient): MesaRepository {
+  public static getInstance(db?: SupabaseClient): MesaRepository {
     if (!MesaRepository.instance) {
-      MesaRepository.instance = new MesaRepository(db);
-    } else if (db) {
-      // Permitir actualizar el cliente de base de datos para pruebas
-      MesaRepository.instance.db = db;
+      let dbInstance: SupabaseClient;
+      if (!db) {
+        // Solo importar y usar Supabase en producción
+        const { supabase } = require("../config/supabase");
+        dbInstance = supabase;
+      } else {
+        dbInstance = db;
+      }
+      MesaRepository.instance = new MesaRepository(dbInstance);
     }
     return MesaRepository.instance;
   }
