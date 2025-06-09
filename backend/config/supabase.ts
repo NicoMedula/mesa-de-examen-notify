@@ -31,7 +31,7 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // Verificar conexión inmediatamente
 (async () => {
   try {
-    const { data, error } = await supabase
+    const { data: _data, error } = await supabase
       .from("profiles")
       .select("count")
       .limit(1);

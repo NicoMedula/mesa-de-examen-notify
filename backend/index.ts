@@ -5,7 +5,7 @@ import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import path from "path";
+// import path from "path"; // Not used currently
 import mesaRoutes from "./routes/mesaRoutes";
 import { WebSocketNotificacionStrategy } from "./strategies/NotificacionStrategy";
 import { supabase } from "./config/supabase";
@@ -190,7 +190,7 @@ app.use(
 const PORT = Number(process.env.PORT) || 3005;
 
 // Agregar manejador global de errores para prevenir que la aplicación se caiga
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   console.error("Error no controlado:", err);
   if (!res.headersSent) {
     res.status(500).json({ error: "Error interno del servidor" });

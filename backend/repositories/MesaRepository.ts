@@ -148,7 +148,7 @@ export class MesaRepository {
 
       // Verificar conflictos de horario para los docentes
       for (const docente of mesa.docentes) {
-        const docenteId = docente.id;
+        const _docenteId = docente.id;
 
         // Buscar otras mesas donde este docente está asignado
         const existingMesasResult = await this.db.from("mesas").select("*");

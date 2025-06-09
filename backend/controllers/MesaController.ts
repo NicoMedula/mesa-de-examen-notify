@@ -237,7 +237,7 @@ export class MesaController {
 
   private async getNombreDocente(id: string): Promise<string> {
     // Busca el nombre del docente en la tabla profiles
-    const { data, error } = await require("../config/supabase")
+    const { data, error: _error } = await require("../config/supabase")
       .supabase.from("profiles")
       .select("nombre")
       .eq("id", id)

@@ -46,11 +46,14 @@ export class AuthController {
       }
 
       // En producción, usar el flujo normal con Supabase para enviar correos reales
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${
-          process.env.FRONTEND_URL || "http://localhost:3000"
-        }/reset-password`,
-      });
+      const { data: _data, error } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: `${
+            process.env.FRONTEND_URL || "http://localhost:3000"
+          }/reset-password`,
+        }
+      );
 
       if (error) {
         console.error("Error al solicitar restablecimiento:", error);
@@ -115,7 +118,7 @@ export class AuthController {
       }
 
       // En producción, usar el flujo normal con Supabase
-      const { data, error } = await supabase.auth.updateUser({
+      const { data: _data, error } = await supabase.auth.updateUser({
         password: password,
       });
 

@@ -1,7 +1,7 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import { MesaController } from "../controllers/MesaController";
 import { supabase } from "../config/supabase";
-import autenticarJWT from "../middleware/autenticacion";
+// import autenticarJWT from "../middleware/autenticacion"; // Not used currently
 
 const router = Router();
 const mesaController = MesaController.getInstance();

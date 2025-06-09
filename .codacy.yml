@@ -1,2 +1,28 @@
-ignore:
-  - package-lock.json
+engines:
+  eslint:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      threshold: 10
+  coverage:
+    enabled: true
+
+exclude_paths:
+  - "package-lock.json"
+  - "yarn.lock"
+  - "node_modules/**"
+  - "dist/**"
+  - "coverage/**"
+  - "e2e/**"
+  - "frontend/**"
+  - "playwright-report/**"
+  - "test-results/**"
+  - "*.test.ts"
+  - "*.spec.ts"
+  - "**/__tests__/**"
+
+coverage:
+  range:
+    - 80
+    - 95

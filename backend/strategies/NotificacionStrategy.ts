@@ -1,6 +1,6 @@
 import { Notificacion } from "../factories/NotificacionFactory";
 import webpush from "web-push";
-import { supabase } from "../config/supabase";
+// import { supabase } from "../config/supabase"; // Not used currently
 
 // Patrón Strategy: Permite cambiar la forma de enviar notificaciones
 export interface NotificacionStrategy {
@@ -60,18 +60,35 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
     return PushNotificacionStrategy.instance;
   }
 
-  public async addSubscription({ docenteId, subscription }: { docenteId: string; subscription: any }) {
+  public async addSubscription({
+    docenteId,
+    subscription,
+  }: {
+    docenteId: string;
+    subscription: any;
+  }) {
     if (!docenteId || !subscription) {
-      console.warn("Intento de agregar suscripción inválida", { docenteId, subscription });
+      console.warn("Intento de agregar suscripción inválida", {
+        docenteId,
+        subscription,
+      });
       return;
     }
     if (!this.subscriptions[docenteId]) {
       this.subscriptions[docenteId] = [];
     }
     // Evitar duplicados por endpoint
-    if (!this.subscriptions[docenteId].some(s => s.endpoint === subscription.endpoint)) {
+    if (
+      !this.subscriptions[docenteId].some(
+        (s) => s.endpoint === subscription.endpoint
+      )
+    ) {
       this.subscriptions[docenteId].push(subscription);
-      console.log("Suscripción push agregada en memoria para", docenteId, subscription.endpoint);
+      console.log(
+        "Suscripción push agregada en memoria para",
+        docenteId,
+        subscription.endpoint
+      );
     }
   }
 
@@ -79,7 +96,9 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
     if (!this.subscriptions[docenteId]) {
       return;
     }
-    this.subscriptions[docenteId] = this.subscriptions[docenteId].filter(s => s.endpoint !== endpoint);
+    this.subscriptions[docenteId] = this.subscriptions[docenteId].filter(
+      (s) => s.endpoint !== endpoint
+    );
     if (this.subscriptions[docenteId].length === 0) {
       delete this.subscriptions[docenteId];
     }
@@ -98,10 +117,17 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
       for (const sub of subs) {
         try {
           // Intentar enviar una notificación de prueba
-          await webpush.sendNotification(sub, JSON.stringify({ title: "Test", body: "Test" }));
+          await webpush.sendNotification(
+            sub,
+            JSON.stringify({ title: "Test", body: "Test" })
+          );
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log("[webpush] Limpiando suscripción expirada para", docenteId, sub.endpoint);
+            console.log(
+              "[webpush] Limpiando suscripción expirada para",
+              docenteId,
+              sub.endpoint
+            );
             await this.removeSubscription(docenteId, sub.endpoint);
           }
         }
@@ -109,8 +135,11 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
     }
   }
 
-  public async enviar(notificacion: Notificacion & { destinatarios?: string[] }) {
-    const destinatarios = notificacion.destinatarios || Object.keys(this.subscriptions);
+  public async enviar(
+    notificacion: Notificacion & { destinatarios?: string[] }
+  ) {
+    const destinatarios =
+      notificacion.destinatarios || Object.keys(this.subscriptions);
     let total = 0;
     let errores = 0;
 
@@ -130,18 +159,35 @@ export class PushNotificacionStrategy implements NotificacionStrategy {
           console.log("[webpush] Enviando a:", sub.endpoint);
           console.log("[webpush] Payload:", payload);
           await webpush.sendNotification(sub, JSON.stringify(payload));
-          console.log("[webpush] Notificación enviada correctamente a:", sub.endpoint);
+          console.log(
+            "[webpush] Notificación enviada correctamente a:",
+            sub.endpoint
+          );
           total++;
         } catch (err: any) {
-          console.error("[webpush] Error enviando push a", docenteId, sub.endpoint, err);
+          console.error(
+            "[webpush] Error enviando push a",
+            docenteId,
+            sub.endpoint,
+            err
+          );
           errores++;
           if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log("[webpush] Eliminando suscripción push inválida para", docenteId, sub.endpoint);
+            console.log(
+              "[webpush] Eliminando suscripción push inválida para",
+              docenteId,
+              sub.endpoint
+            );
             await this.removeSubscription(docenteId, sub.endpoint);
           }
         }
       }
     }
-    console.log("[webpush] Enviadas", total, "notificaciones push a docentes. Errores:", errores);
+    console.log(
+      "[webpush] Enviadas",
+      total,
+      "notificaciones push a docentes. Errores:",
+      errores
+    );
   }
 }

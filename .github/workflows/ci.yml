@@ -12,21 +12,38 @@ jobs:
 
     steps:
       - name: Checkout código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Instalar Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "npm"
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm ci
 
-      - name: Lint
+      - name: Verificar calidad de código
         run: npm run lint
 
-      - name: Build
+      - name: Build del proyecto
         run: npm run build
 
-      - name: Ejecutar tests
+      - name: Ejecutar tests con cobertura
         run: npm run test:coverage
+
+      - name: Subir cobertura a Codacy
+        uses: codacy/codacy-coverage-reporter-action@v1
+        if: github.actor != 'dependabot[bot]'
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage/lcov.info
+        continue-on-error: true
+
+      - name: Comentar resultados de cobertura en PR
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./coverage/lcov.info
+        continue-on-error: true
