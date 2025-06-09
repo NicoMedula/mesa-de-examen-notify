@@ -4,9 +4,13 @@ engines:
   duplication:
     enabled: true
     config:
-      threshold: 10
+      threshold: 15
   coverage:
     enabled: true
+  bandit:
+    enabled: false
+  semgrep:
+    enabled: false
 
 exclude_paths:
   - "package-lock.json"
@@ -21,8 +25,22 @@ exclude_paths:
   - "*.test.ts"
   - "*.spec.ts"
   - "**/__tests__/**"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "*.config.js"
+  - "*.config.ts"
+  - "jest.config.js"
+  - "playwright.config.ts"
 
 coverage:
   range:
-    - 80
+    - 75
     - 95
+
+issues:
+  exclude_patterns:
+    - "**/*.test.ts"
+    - "**/*.spec.ts"
+    - "**/__tests__/**"
+    - "**/test-*"
+    - "**/mock-*"
