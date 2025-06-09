@@ -279,7 +279,7 @@ export class MesaController {
         return;
       }
 
-      // Si se enviu00f3 un array de docentes (caso de cancelaciu00f3n), usarlo direcamente
+      // Si se envia un array de docentes (caso de cancelación), usarlo direcamente
       let nuevosDocentes;
       if (docentes && Array.isArray(docentes)) {
         console.log("Usando docentes enviados desde frontend:", docentes);
