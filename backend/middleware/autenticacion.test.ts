@@ -51,4 +51,42 @@ describe("autenticarJWT", () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
   });
+
+  it("deniega acceso con token expirado", async () => {
+    const token = jwt.sign({ rol: "docente", nombre: "Juan" }, SECRET, { expiresIn: '1ms' });
+    // Esperamos 2ms para asegurar que el token expire
+    await new Promise(resolve => setTimeout(resolve, 2));
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso con token que no tiene formato JWT válido", async () => {
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature";
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("Token inválido o expirado");
+  });
+
+  it("deniega acceso con token que no tiene campo rol", async () => {
+    const token = jwt.sign({ nombre: "Juan" }, SECRET);
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("No tienes permisos suficientes");
+  });
+
+  it("deniega acceso con token que no es un objeto", async () => {
+    const token = jwt.sign("string", SECRET);
+    const res = await request(app)
+      .get("/protegida")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.mensaje).toBe("No tienes permisos suficientes");
+  });
 });
