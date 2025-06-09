@@ -726,7 +726,5 @@ describe("MesaController", () => {
         })
       );
     });
-
-
   });
 });

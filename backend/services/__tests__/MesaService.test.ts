@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest } from "@jest/globals";
 import { MesaService } from "../MesaService";
 import { MesaRepository } from "../../repositories/MesaRepository";
 import { NotificacionFactory } from "../../factories/NotificacionFactory";
@@ -10,7 +10,6 @@ import {
 jest.mock("../../repositories/MesaRepository");
 jest.mock("../../factories/NotificacionFactory");
 jest.mock("../../strategies/NotificacionStrategy");
-
 
 describe("MesaService", () => {
   let mesaService: MesaService;
@@ -40,7 +39,6 @@ describe("MesaService", () => {
     mockRepo.getMesasByDocenteId.mockResolvedValue(["mesa1"]);
     const result = await mesaService.getMesasByDocenteId("doc1");
     expect(result).toEqual(["mesa1"]);
-
   });
 
   it("debería confirmar mesa y notificar", async () => {
@@ -395,6 +393,5 @@ describe("MesaService", () => {
 
     // No debe entrar en el bloque de rechazo
     expect(mockPushStrategy.enviar).not.toHaveBeenCalled();
-
   });
 });

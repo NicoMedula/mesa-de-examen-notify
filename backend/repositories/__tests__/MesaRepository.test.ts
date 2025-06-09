@@ -5,7 +5,6 @@ describe("MesaRepository", () => {
   let db: any;
 
   beforeEach(() => {
-
     db = {
       from: jest.fn().mockReturnValue({
         select: jest.fn().mockResolvedValue({ data: [], error: null }),
@@ -54,7 +53,6 @@ describe("MesaRepository", () => {
     await expect(repo.createMesa(mesa as any)).resolves.toBeDefined();
   });
 
-
   it("debería lanzar error si la materia es obligatoria", async () => {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 3);
@@ -71,7 +69,6 @@ describe("MesaRepository", () => {
     };
 
     await expect(repo.createMesa(mesa as any)).rejects.toThrow(
-
       "La materia es obligatoria"
     );
   });
@@ -161,7 +158,6 @@ describe("MesaRepository", () => {
       .fn()
       .mockReturnValueOnce({
         select: jest.fn().mockResolvedValue({ data: [], error: null }),
-
       })
       .mockReturnValueOnce({
         select: jest
@@ -673,4 +669,3 @@ describe("Métodos privados de adaptación", () => {
     );
   });
 });
-
