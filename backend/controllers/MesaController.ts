@@ -121,17 +121,6 @@ export class MesaController {
     }
   }
 
-  public async enviarRecordatorio(req: Request, res: Response): Promise<void> {
-    try {
-      const { mesaId } = req.params;
-      await this.mesaService.enviarRecordatorio(mesaId);
-      res.json({ message: "Recordatorio enviado correctamente" });
-    } catch (error) {
-      console.error("Error en enviarRecordatorio:", error);
-      res.status(500).json({ error: "Error al enviar el recordatorio" });
-    }
-  }
-
   public async createMesa(req: Request, res: Response): Promise<void> {
     try {
       console.log("Recibida solicitud para crear mesa:", req.body);
@@ -248,7 +237,7 @@ export class MesaController {
 
   private async getNombreDocente(id: string): Promise<string> {
     // Busca el nombre del docente en la tabla profiles
-    const { data, error } = await require("../config/supabase")
+    const { data, error: _error } = await require("../config/supabase")
       .supabase.from("profiles")
       .select("nombre")
       .eq("id", id)
@@ -279,7 +268,7 @@ export class MesaController {
         return;
       }
 
-      // Si se enviu00f3 un array de docentes (caso de cancelaciu00f3n), usarlo direcamente
+      // Si se envia un array de docentes (caso de cancelación), usarlo direcamente
       let nuevosDocentes;
       if (docentes && Array.isArray(docentes)) {
         console.log("Usando docentes enviados desde frontend:", docentes);

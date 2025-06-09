@@ -16,7 +16,12 @@ interface Mesa {
   aula: string;
   ubicacion: string;
   estado: string;
-  docentes: { id: string; nombre: string; confirmacion: string }[];
+  docentes: {
+    id: string;
+    nombre: string;
+    confirmacion: string;
+    confirmacionHora?: string;
+  }[];
 }
 
 const DepartamentoDashboard: React.FC = () => {
@@ -27,6 +32,10 @@ const DepartamentoDashboard: React.FC = () => {
   const [editMesa, setEditMesa] = useState<Mesa | null>(null);
   const [form, setForm] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  const [showRecordatorioModal, setShowRecordatorioModal] = useState(false);
+  const [selectedMesa, setSelectedMesa] = useState<Mesa | null>(null);
+  const [horasAntes, setHorasAntes] = useState<number>(24);
+  const [recordatorios, setRecordatorios] = useState<any[]>([]);
 
   // Efecto para limpiar el mensaje de error después de un tiempo
   useEffect(() => {
@@ -409,130 +418,392 @@ const DepartamentoDashboard: React.FC = () => {
     navigate("/login");
   };
 
+  const handleShowRecordatorioModal = async (mesa: Mesa) => {
+    setSelectedMesa(mesa);
+    setHorasAntes(24); // Valor por defecto: 24 horas
+    setShowRecordatorioModal(true);
+
+    // Cargar recordatorios existentes para esta mesa
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        setRecordatorios([]);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/mesa/${mesa.id}/recordatorios`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRecordatorios(data || []);
+      } else {
+        console.error("Error al cargar recordatorios:", res.status);
+        setRecordatorios([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar recordatorios:", error);
+      setRecordatorios([]);
+    }
+  };
+
+  const handleCloseRecordatorioModal = () => {
+    setShowRecordatorioModal(false);
+    setSelectedMesa(null);
+  };
+
+  const handleCreateRecordatorio = async () => {
+    if (!selectedMesa) return;
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/mesa/${selectedMesa.id}/recordatorio-programado`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ horas_antes: horasAntes }),
+        }
+      );
+
+      if (res.ok) {
+        const nuevoRecordatorio = await res.json();
+        setRecordatorios([...recordatorios, nuevoRecordatorio]);
+        setError("Recordatorio creado correctamente");
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al crear recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al crear recordatorio: ${error.message || "Error desconocido"}`
+      );
+    }
+  };
+
+  const handleDeleteRecordatorio = async (recordatorioId: string) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/recordatorio/${recordatorioId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        setRecordatorios(recordatorios.filter((r) => r.id !== recordatorioId));
+        setError("Recordatorio eliminado correctamente");
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al eliminar recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al eliminar recordatorio: ${
+          error.message || "Error desconocido"
+        }`
+      );
+    }
+  };
+
+  // Función para enviar recordatorio manual a los docentes de una mesa confirmada
+  const handleSendRecordatorio = async (mesaId: string) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL;
+      // Obtener el token de autenticación del localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("No hay sesión activa. Por favor, inicie sesión nuevamente.");
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/mesa/${mesaId}/enviar-recordatorio`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (res.ok) {
+        setError(
+          "Recordatorio enviado correctamente a los docentes titular y vocal"
+        );
+        setTimeout(() => setError(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setError(
+          `Error al enviar recordatorio: ${
+            errorData.error || "Error desconocido"
+          }`
+        );
+      }
+    } catch (error: any) {
+      setError(
+        `Error al enviar recordatorio: ${error.message || "Error desconocido"}`
+      );
+    }
+  };
+
   return (
     <div className="container-fluid px-lg-5">
-      <div className="row my-3">
-        <div className="col-12 d-flex justify-content-between align-items-center">
-          <h2 className="mb-3 text-center text-md-start">
-            Panel del Departamento - Gestión de Mesas de Examen
-          </h2>
-          <button className="btn btn-outline-danger" onClick={handleLogout}>
-            Cerrar sesión
-          </button>
-        </div>
-        <div className="col-12">
-         
+      <div className="row align-items-center my-3">
+        <div className="col">
+          <div className="row my-3">
+            <div className="col-12 d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center gap-3 w-100 justify-content-between">
+                <h2 className="mb-3 text-center text-md-start m-0">
+                  Panel del Departamento - Gestión de Mesas de Examen
+                </h2>
+                <img
+                  src="/image/logoUCP.png"
+                  alt="Logo UCP"
+                  style={{
+                    height: 120,
+                    width: "auto",
+                    maxWidth: 260,
+                    objectFit: "contain",
+                  }}
+                />
+                <button
+                  className="btn btn-outline-danger ms-3"
+                  onClick={handleLogout}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+            <div className="col-12">
+              <div className="d-grid d-md-block mb-3">
+                <button
+                  className="btn btn-success mb-2 mb-md-0 me-md-2"
+                  onClick={() => {
+                    setShowForm(true);
+                    setEditMesa(null);
+                    setForm({});
+                  }}
+                >
+                  Nueva Mesa
+                </button>
+              </div>
 
-          <div className="d-grid d-md-block mb-3">
-            <button
-              className="btn btn-success mb-2 mb-md-0 me-md-2"
-              onClick={() => {
-                setShowForm(true);
-                setEditMesa(null);
-                setForm({});
-              }}
-            >
-              Nueva Mesa
-            </button>
-          </div>
+              {/* Tabs de navegación mejoradas */}
+              <ul className="nav nav-tabs mb-3">
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${
+                      activeTab === "pendientes" ? "active" : ""
+                    }`}
+                    onClick={() => setActiveTab("pendientes")}
+                    type="button"
+                  >
+                    Mesas Pendientes
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${
+                      activeTab === "confirmadas" ? "active" : ""
+                    }`}
+                    onClick={() => setActiveTab("confirmadas")}
+                    type="button"
+                  >
+                    Mesas Confirmadas
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${
+                      activeTab === "docentes" ? "active" : ""
+                    }`}
+                    onClick={() => setActiveTab("docentes")}
+                    type="button"
+                  >
+                    Docentes Registrados
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${
+                      activeTab === "historial" ? "active" : ""
+                    }`}
+                    onClick={() => setActiveTab("historial")}
+                    type="button"
+                  >
+                    Historial de Mesas
+                  </button>
+                </li>
+              </ul>
 
-          {/* Tabs de navegación mejoradas */}
-          <ul className="nav nav-tabs mb-3">
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "pendientes" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("pendientes")}
-                type="button"
-              >
-                Mesas Pendientes
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "confirmadas" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("confirmadas")}
-                type="button"
-              >
-                Mesas Confirmadas
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "docentes" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("docentes")}
-                type="button"
-              >
-                Docentes Registrados
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "historial" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("historial")}
-                type="button"
-              >
-                Historial de Mesas
-              </button>
-            </li>
-          </ul>
+              {error && <div className="alert alert-danger">{error}</div>}
 
-          {error && <div className="alert alert-danger">{error}</div>}
+              {/* Tab de mesas pendientes */}
+              {activeTab === "pendientes" && (
+                <>
+                  {mesas.length === 0 ? (
+                    <div className="alert alert-info">
+                      No hay mesas pendientes.
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-bordered table-hover">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Materia</th>
+                            <th>Fecha</th>
+                            <th className="d-none d-md-table-cell">Hora</th>
+                            <th className="d-none d-md-table-cell">Aula</th>
+                            <th className="d-none d-lg-table-cell">
+                              Docente Titular
+                            </th>
+                            <th className="d-none d-lg-table-cell">
+                              Docente Vocal
+                            </th>
+                            <th>Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mesas.map((mesa) => {
+                            // Verificar si ambos docentes han aceptado
+                            const bothAccepted =
+                              mesa.docentes?.[0]?.confirmacion === "aceptado" &&
+                              mesa.docentes?.[1]?.confirmacion === "aceptado";
 
-          {/* Tab de mesas pendientes */}
-          {activeTab === "pendientes" && (
-            <>
-              {mesas.length === 0 ? (
-                <div className="alert alert-info">No hay mesas pendientes.</div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-bordered table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Materia</th>
-                        <th>Fecha</th>
-                        <th className="d-none d-md-table-cell">Hora</th>
-                        <th className="d-none d-md-table-cell">Aula</th>
-                        <th className="d-none d-lg-table-cell">
-                          Docente Titular
-                        </th>
-                        <th className="d-none d-lg-table-cell">
-                          Docente Vocal
-                        </th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mesas.map((mesa) => {
-                        // Verificar si ambos docentes han aceptado
-                        const bothAccepted =
-                          mesa.docentes?.[0]?.confirmacion === "aceptado" &&
-                          mesa.docentes?.[1]?.confirmacion === "aceptado";
-
-                        return (
-                          <tr key={mesa.id}>
-                            <td>
-                              <div>{mesa.materia || "-"}</div>
-                              <div className="d-md-none">
-                                <small className="text-muted">
-                                  Hora: {mesa.hora}
-                                </small>
-                              </div>
-                              <div className="d-md-none">
-                                <small className="text-muted">
-                                  Aula: {mesa.aula || "-"}
-                                </small>
-                              </div>
-                              <div className="d-lg-none mt-2">
-                                <small className="d-block text-muted">
-                                  <strong>Titular:</strong>{" "}
+                            return (
+                              <tr key={mesa.id}>
+                                <td>
+                                  <div>{mesa.materia || "-"}</div>
+                                  <div className="d-md-none">
+                                    <small className="text-muted">
+                                      Hora: {mesa.hora}
+                                    </small>
+                                  </div>
+                                  <div className="d-md-none">
+                                    <small className="text-muted">
+                                      Aula: {mesa.aula || "-"}
+                                    </small>
+                                  </div>
+                                  <div className="d-lg-none mt-2">
+                                    <small className="d-block text-muted">
+                                      <strong>Titular:</strong>{" "}
+                                      {mesa.docentes?.[0]?.nombre || "-"}
+                                      {mesa.docentes?.[0]?.confirmacion && (
+                                        <span
+                                          className={`ms-2 badge ${
+                                            mesa.docentes[0].confirmacion ===
+                                            "aceptado"
+                                              ? "bg-success"
+                                              : mesa.docentes[0]
+                                                  .confirmacion === "rechazado"
+                                              ? "bg-danger"
+                                              : "bg-warning"
+                                          }`}
+                                        >
+                                          {mesa.docentes[0].confirmacion}
+                                          {mesa.docentes[0].confirmacionHora &&
+                                            ["aceptado", "rechazado"].includes(
+                                              mesa.docentes[0].confirmacion
+                                            ) && (
+                                              <span className="ms-2 small text-muted">
+                                                {new Date(
+                                                  mesa.docentes[0].confirmacionHora
+                                                ).toLocaleString("es-AR", {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  day: "2-digit",
+                                                  month: "2-digit",
+                                                  year: "2-digit",
+                                                })}
+                                              </span>
+                                            )}
+                                        </span>
+                                      )}
+                                    </small>
+                                    <small className="d-block text-muted">
+                                      <strong>Vocal:</strong>{" "}
+                                      {mesa.docentes?.[1]?.nombre || "-"}
+                                      {mesa.docentes?.[1]?.confirmacion && (
+                                        <span
+                                          className={`ms-2 badge ${
+                                            mesa.docentes[1].confirmacion ===
+                                            "aceptado"
+                                              ? "bg-success"
+                                              : mesa.docentes[1]
+                                                  .confirmacion === "rechazado"
+                                              ? "bg-danger"
+                                              : "bg-warning"
+                                          }`}
+                                        >
+                                          {mesa.docentes[1].confirmacion}
+                                          {mesa.docentes[1].confirmacionHora &&
+                                            ["aceptado", "rechazado"].includes(
+                                              mesa.docentes[1].confirmacion
+                                            ) && (
+                                              <span className="ms-2 small text-muted">
+                                                {new Date(
+                                                  mesa.docentes[1].confirmacionHora
+                                                ).toLocaleString("es-AR", {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  day: "2-digit",
+                                                  month: "2-digit",
+                                                  year: "2-digit",
+                                                })}
+                                              </span>
+                                            )}
+                                        </span>
+                                      )}
+                                    </small>
+                                  </div>
+                                </td>
+                                <td>{mesa.fecha}</td>
+                                <td className="d-none d-md-table-cell">
+                                  {mesa.hora}
+                                </td>
+                                <td className="d-none d-md-table-cell">
+                                  {mesa.aula || "-"}
+                                </td>
+                                <td className="d-none d-lg-table-cell">
                                   {mesa.docentes?.[0]?.nombre || "-"}
                                   {mesa.docentes?.[0]?.confirmacion && (
                                     <span
@@ -547,11 +818,26 @@ const DepartamentoDashboard: React.FC = () => {
                                       }`}
                                     >
                                       {mesa.docentes[0].confirmacion}
+                                      {mesa.docentes[0].confirmacionHora &&
+                                        ["aceptado", "rechazado"].includes(
+                                          mesa.docentes[0].confirmacion
+                                        ) && (
+                                          <span className="ms-2 small text-muted">
+                                            {new Date(
+                                              mesa.docentes[0].confirmacionHora
+                                            ).toLocaleString("es-AR", {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              day: "2-digit",
+                                              month: "2-digit",
+                                              year: "2-digit",
+                                            })}
+                                          </span>
+                                        )}
                                     </span>
                                   )}
-                                </small>
-                                <small className="d-block text-muted">
-                                  <strong>Vocal:</strong>{" "}
+                                </td>
+                                <td className="d-none d-lg-table-cell">
                                   {mesa.docentes?.[1]?.nombre || "-"}
                                   {mesa.docentes?.[1]?.confirmacion && (
                                     <span
@@ -566,378 +852,454 @@ const DepartamentoDashboard: React.FC = () => {
                                       }`}
                                     >
                                       {mesa.docentes[1].confirmacion}
+                                      {mesa.docentes[1].confirmacionHora &&
+                                        ["aceptado", "rechazado"].includes(
+                                          mesa.docentes[1].confirmacion
+                                        ) && (
+                                          <span className="ms-2 small text-muted">
+                                            {new Date(
+                                              mesa.docentes[1].confirmacionHora
+                                            ).toLocaleString("es-AR", {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              day: "2-digit",
+                                              month: "2-digit",
+                                              year: "2-digit",
+                                            })}
+                                          </span>
+                                        )}
                                     </span>
                                   )}
-                                </small>
-                              </div>
-                            </td>
-                            <td>{mesa.fecha}</td>
-                            <td className="d-none d-md-table-cell">
-                              {mesa.hora}
-                            </td>
-                            <td className="d-none d-md-table-cell">
-                              {mesa.aula || "-"}
-                            </td>
-                            <td className="d-none d-lg-table-cell">
-                              {mesa.docentes?.[0]?.nombre || "-"}
-                              {mesa.docentes?.[0]?.confirmacion && (
-                                <span
-                                  className={`ms-2 badge ${
-                                    mesa.docentes[0].confirmacion === "aceptado"
-                                      ? "bg-success"
-                                      : mesa.docentes[0].confirmacion ===
-                                        "rechazado"
-                                      ? "bg-danger"
-                                      : "bg-warning"
-                                  }`}
-                                >
-                                  {mesa.docentes[0].confirmacion}
-                                </span>
-                              )}
-                            </td>
-                            <td className="d-none d-lg-table-cell">
-                              {mesa.docentes?.[1]?.nombre || "-"}
-                              {mesa.docentes?.[1]?.confirmacion && (
-                                <span
-                                  className={`ms-2 badge ${
-                                    mesa.docentes[1].confirmacion === "aceptado"
-                                      ? "bg-success"
-                                      : mesa.docentes[1].confirmacion ===
-                                        "rechazado"
-                                      ? "bg-danger"
-                                      : "bg-warning"
-                                  }`}
-                                >
-                                  {mesa.docentes[1].confirmacion}
-                                </span>
-                              )}
-                            </td>
-                            <td>
-                              <div className="d-flex flex-column flex-sm-row gap-2">
-                                <button
-                                  className="btn btn-primary btn-sm"
-                                  onClick={() => handleEdit(mesa)}
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => handleDelete(mesa.id)}
-                                >
-                                  Eliminar
-                                </button>
-                                {bothAccepted && (
-                                  <button
-                                    className="btn btn-success btn-sm"
-                                    onClick={() => handleConfirmMesa(mesa.id)}
-                                  >
-                                    Confirmar
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                </td>
+                                <td>
+                                  <div className="d-flex flex-column flex-sm-row gap-2">
+                                    <button
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => handleEdit(mesa)}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      className="btn btn-danger btn-sm"
+                                      onClick={() => handleDelete(mesa.id)}
+                                    >
+                                      Eliminar
+                                    </button>
+                                    {/* Botón de recordatorios eliminado para mesas pendientes */}
+                                    {bothAccepted && (
+                                      <button
+                                        className="btn btn-success btn-sm"
+                                        onClick={() =>
+                                          handleConfirmMesa(mesa.id)
+                                        }
+                                      >
+                                        Confirmar
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
 
-          {/* Tab de mesas confirmadas */}
-          {activeTab === "confirmadas" && (
-            <>
-              {mesasConfirmadas.length === 0 ? (
-                <div className="alert alert-info">
-                  No hay mesas confirmadas.
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-bordered table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Materia</th>
-                        <th>Fecha</th>
-                        <th className="d-none d-md-table-cell">Hora</th>
-                        <th className="d-none d-md-table-cell">Aula</th>
-                        <th className="d-none d-lg-table-cell">
-                          Docente Titular
-                        </th>
-                        <th className="d-none d-lg-table-cell">
-                          Docente Vocal
-                        </th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mesasConfirmadas.map((mesa) => (
-                        <tr key={mesa.id} className="table-success">
-                          <td>
-                            <div>{mesa.materia || "-"}</div>
-                            <div className="d-md-none">
-                              <small className="text-muted">
-                                Hora: {mesa.hora}
-                              </small>
-                            </div>
-                            <div className="d-md-none">
-                              <small className="text-muted">
-                                Aula: {mesa.aula || "-"}
-                              </small>
-                            </div>
-                            <div className="d-lg-none mt-2">
-                              <small className="d-block text-muted">
-                                <strong>Titular:</strong>{" "}
+              {/* Tab de mesas confirmadas */}
+              {activeTab === "confirmadas" && (
+                <>
+                  {mesasConfirmadas.length === 0 ? (
+                    <div className="alert alert-info">
+                      No hay mesas confirmadas.
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-bordered table-hover">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Materia</th>
+                            <th>Fecha</th>
+                            <th className="d-none d-md-table-cell">Hora</th>
+                            <th className="d-none d-md-table-cell">Aula</th>
+                            <th className="d-none d-lg-table-cell">
+                              Docente Titular
+                            </th>
+                            <th className="d-none d-lg-table-cell">
+                              Docente Vocal
+                            </th>
+                            <th>Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mesasConfirmadas.map((mesa) => (
+                            <tr key={mesa.id} className="table-success">
+                              <td>
+                                <div>{mesa.materia || "-"}</div>
+                                <div className="d-md-none">
+                                  <small className="text-muted">
+                                    Hora: {mesa.hora}
+                                  </small>
+                                </div>
+                                <div className="d-md-none">
+                                  <small className="text-muted">
+                                    Aula: {mesa.aula || "-"}
+                                  </small>
+                                </div>
+                                <div className="d-lg-none mt-2">
+                                  <small className="d-block text-muted">
+                                    <strong>Titular:</strong>{" "}
+                                    {mesa.docentes?.[0]?.nombre || "-"}
+                                    {mesa.docentes?.[0]?.confirmacion && (
+                                      <span className="ms-2 badge bg-success">
+                                        {mesa.docentes[0].confirmacion}
+                                        {mesa.docentes[0].confirmacionHora &&
+                                          ["aceptado", "rechazado"].includes(
+                                            mesa.docentes[0].confirmacion
+                                          ) && (
+                                            <span className="ms-2 small text-muted">
+                                              {new Date(
+                                                mesa.docentes[0].confirmacionHora
+                                              ).toLocaleString("es-AR", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "2-digit",
+                                              })}
+                                            </span>
+                                          )}
+                                      </span>
+                                    )}
+                                  </small>
+                                  <small className="d-block text-muted">
+                                    <strong>Vocal:</strong>{" "}
+                                    {mesa.docentes?.[1]?.nombre || "-"}
+                                    {mesa.docentes?.[1]?.confirmacion && (
+                                      <span className="ms-2 badge bg-success">
+                                        {mesa.docentes[1].confirmacion}
+                                        {mesa.docentes[1].confirmacionHora &&
+                                          ["aceptado", "rechazado"].includes(
+                                            mesa.docentes[1].confirmacion
+                                          ) && (
+                                            <span className="ms-2 small text-muted">
+                                              {new Date(
+                                                mesa.docentes[1].confirmacionHora
+                                              ).toLocaleString("es-AR", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "2-digit",
+                                              })}
+                                            </span>
+                                          )}
+                                      </span>
+                                    )}
+                                  </small>
+                                </div>
+                              </td>
+                              <td>{mesa.fecha}</td>
+                              <td className="d-none d-md-table-cell">
+                                {mesa.hora}
+                              </td>
+                              <td className="d-none d-md-table-cell">
+                                {mesa.aula || "-"}
+                              </td>
+                              <td className="d-none d-lg-table-cell">
                                 {mesa.docentes?.[0]?.nombre || "-"}
                                 {mesa.docentes?.[0]?.confirmacion && (
                                   <span className="ms-2 badge bg-success">
                                     {mesa.docentes[0].confirmacion}
+                                    {mesa.docentes[0].confirmacionHora &&
+                                      ["aceptado", "rechazado"].includes(
+                                        mesa.docentes[0].confirmacion
+                                      ) && (
+                                        <span className="ms-2 small text-muted">
+                                          {new Date(
+                                            mesa.docentes[0].confirmacionHora
+                                          ).toLocaleString("es-AR", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "2-digit",
+                                          })}
+                                        </span>
+                                      )}
                                   </span>
                                 )}
-                              </small>
-                              <small className="d-block text-muted">
-                                <strong>Vocal:</strong>{" "}
+                              </td>
+                              <td className="d-none d-lg-table-cell">
                                 {mesa.docentes?.[1]?.nombre || "-"}
                                 {mesa.docentes?.[1]?.confirmacion && (
                                   <span className="ms-2 badge bg-success">
                                     {mesa.docentes[1].confirmacion}
+                                    {mesa.docentes[1].confirmacionHora &&
+                                      ["aceptado", "rechazado"].includes(
+                                        mesa.docentes[1].confirmacion
+                                      ) && (
+                                        <span className="ms-2 small text-muted">
+                                          {new Date(
+                                            mesa.docentes[1].confirmacionHora
+                                          ).toLocaleString("es-AR", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "2-digit",
+                                          })}
+                                        </span>
+                                      )}
                                   </span>
                                 )}
-                              </small>
-                            </div>
-                          </td>
-                          <td>{mesa.fecha}</td>
-                          <td className="d-none d-md-table-cell">
-                            {mesa.hora}
-                          </td>
-                          <td className="d-none d-md-table-cell">
-                            {mesa.aula || "-"}
-                          </td>
-                          <td className="d-none d-lg-table-cell">
-                            {mesa.docentes?.[0]?.nombre || "-"}
-                            {mesa.docentes?.[0]?.confirmacion && (
-                              <span className="ms-2 badge bg-success">
-                                {mesa.docentes[0].confirmacion}
-                              </span>
-                            )}
-                          </td>
-                          <td className="d-none d-lg-table-cell">
-                            {mesa.docentes?.[1]?.nombre || "-"}
-                            {mesa.docentes?.[1]?.confirmacion && (
-                              <span className="ms-2 badge bg-success">
-                                {mesa.docentes[1].confirmacion}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              className="btn btn-warning btn-sm"
-                              onClick={() => handleCancelMesa(mesa.id)}
-                            >
-                              Cancelar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td>
+                                <div className="d-flex flex-column flex-sm-row gap-2">
+                                  <button
+                                    className="btn btn-warning btn-sm"
+                                    onClick={() => handleCancelMesa(mesa.id)}
+                                  >
+                                    Cancelar
+                                  </button>
+                                  {/* Botón de Recordatorios eliminado */}
+                                  {/* <button
+                                    className="btn btn-info btn-sm"
+                                    onClick={() =>
+                                      handleShowRecordatorioModal(mesa)
+                                    }
+                                  >
+                                    Recordatorios
+                                  </button> */}
+                                  {/* Botón de Enviar Recordatorio eliminado */}
+                                  {/* <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() =>
+                                      handleSendRecordatorio(mesa.id)
+                                    }
+                                  >
+                                    Enviar Recordatorio
+                                  </button> */}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Tab de docentes registrados */}
+              {activeTab === "docentes" && (
+                <div className="card mt-4 shadow-sm">
+                  <div className="card-body">
+                    <h5 className="card-title mb-3">Docentes registrados</h5>
+                    {docentes.length === 0 ? (
+                      <div className="alert alert-info">
+                        No hay docentes registrados.
+                      </div>
+                    ) : (
+                      <table className="table table-striped table-hover">
+                        <thead className="table-light">
+                          <tr>
+                            <th style={{ width: "60px" }}>#</th>
+                            <th>Nombre y Apellido</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {docentes.map((docente, idx) => (
+                            <tr key={docente.id}>
+                              <td>{idx + 1}</td>
+                              <td>{docente.nombre}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               )}
-            </>
-          )}
 
-          {/* Tab de docentes registrados */}
-          {activeTab === "docentes" && (
-            <div className="card mt-4 shadow-sm">
-              <div className="card-body">
-                <h5 className="card-title mb-3">Docentes registrados</h5>
-                {docentes.length === 0 ? (
-                  <div className="alert alert-info">
-                    No hay docentes registrados.
+              {activeTab === "historial" && (
+                <div className="card mt-4 shadow-sm">
+                  <div className="card-body">
+                    <h5 className="card-title mb-3">Historial de Mesas</h5>
+                    {(() => {
+                      const hoy = new Date();
+                      const historial = mesasConfirmadas.filter((mesa) => {
+                        const fechaMesa = new Date(mesa.fecha);
+                        return fechaMesa < hoy;
+                      });
+                      if (historial.length === 0) {
+                        return (
+                          <div className="alert alert-info">
+                            No hay mesas en el historial.
+                          </div>
+                        );
+                      }
+                      return (
+                        <table className="table table-striped table-hover">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Materia</th>
+                              <th>Fecha</th>
+                              <th>Hora</th>
+                              <th>Aula</th>
+                              <th>Docente Titular</th>
+                              <th>Docente Vocal</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {historial.map((mesa) => (
+                              <tr key={mesa.id}>
+                                <td>{mesa.materia}</td>
+                                <td>{mesa.fecha}</td>
+                                <td>{mesa.hora}</td>
+                                <td>{mesa.aula}</td>
+                                <td>{mesa.docentes?.[0]?.nombre || "-"}</td>
+                                <td>{mesa.docentes?.[1]?.nombre || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
-                ) : (
-                  <table className="table table-striped table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th style={{ width: "60px" }}>#</th>
-                        <th>Nombre y Apellido</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {docentes.map((docente, idx) => (
-                        <tr key={docente.id}>
-                          <td>{idx + 1}</td>
-                          <td>{docente.nombre}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {activeTab === "historial" && (
-            <div className="card mt-4 shadow-sm">
-              <div className="card-body">
-                <h5 className="card-title mb-3">Historial de Mesas</h5>
-                {(() => {
-                  const hoy = new Date();
-                  const historial = mesasConfirmadas.filter((mesa) => {
-                    const fechaMesa = new Date(mesa.fecha);
-                    return fechaMesa < hoy;
-                  });
-                  if (historial.length === 0) {
-                    return (
-                      <div className="alert alert-info">
-                        No hay mesas en el historial.
+              {showForm && (
+                <div className="card mt-4">
+                  <div className="card-body">
+                    <h5 className="card-title">
+                      {editMesa ? "Editar Mesa" : "Nueva Mesa"}
+                    </h5>
+                    {error && <div className="alert alert-danger">{error}</div>}
+                    <form onSubmit={handleSubmit}>
+                      <div className="row">
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Materia/Cátedra</label>
+                          <input
+                            name="materia"
+                            className="form-control"
+                            value={form.materia || ""}
+                            onChange={handleInput}
+                            required
+                          />
+                        </div>
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Fecha</label>
+                          <input
+                            name="fecha"
+                            type="date"
+                            className="form-control"
+                            value={form.fecha || ""}
+                            onChange={handleInput}
+                            required
+                          />
+                        </div>
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Hora</label>
+                          <input
+                            name="hora"
+                            type="time"
+                            className="form-control"
+                            value={form.hora || ""}
+                            onChange={handleInput}
+                            required
+                          />
+                        </div>
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Aula</label>
+                          <input
+                            name="aula"
+                            className="form-control"
+                            value={form.aula || ""}
+                            onChange={handleInput}
+                            required
+                          />
+                        </div>
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Docente Titular</label>
+                          <select
+                            name="docente_titular"
+                            className="form-select"
+                            value={form.docente_titular || ""}
+                            onChange={handleInput}
+                            required
+                          >
+                            <option value="">Seleccionar...</option>
+                            {docentes
+                              .filter((d) => d.id !== form.docente_vocal)
+                              .map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.nombre}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div className="col-12 col-md-6 mb-3">
+                          <label className="form-label">Docente Vocal</label>
+                          <select
+                            name="docente_vocal"
+                            className="form-select"
+                            value={form.docente_vocal || ""}
+                            onChange={handleInput}
+                            required
+                          >
+                            <option value="">Seleccionar...</option>
+                            {docentes
+                              .filter((d) => d.id !== form.docente_titular)
+                              .map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.nombre}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
                       </div>
-                    );
-                  }
-                  return (
-                    <table className="table table-striped table-hover">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Materia</th>
-                          <th>Fecha</th>
-                          <th>Hora</th>
-                          <th>Aula</th>
-                          <th>Docente Titular</th>
-                          <th>Docente Vocal</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {historial.map((mesa) => (
-                          <tr key={mesa.id}>
-                            <td>{mesa.materia}</td>
-                            <td>{mesa.fecha}</td>
-                            <td>{mesa.hora}</td>
-                            <td>{mesa.aula}</td>
-                            <td>{mesa.docentes?.[0]?.nombre || "-"}</td>
-                            <td>{mesa.docentes?.[1]?.nombre || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {showForm && (
-            <div className="card mt-4">
-              <div className="card-body">
-                <h5 className="card-title">
-                  {editMesa ? "Editar Mesa" : "Nueva Mesa"}
-                </h5>
-                {error && <div className="alert alert-danger">{error}</div>}
-                <form onSubmit={handleSubmit}>
-                  <div className="row">
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Materia/Cátedra</label>
-                      <input
-                        name="materia"
-                        className="form-control"
-                        value={form.materia || ""}
-                        onChange={handleInput}
-                        required
-                      />
-                    </div>
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Fecha</label>
-                      <input
-                        name="fecha"
-                        type="date"
-                        className="form-control"
-                        value={form.fecha || ""}
-                        onChange={handleInput}
-                        required
-                      />
-                    </div>
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Hora</label>
-                      <input
-                        name="hora"
-                        type="time"
-                        className="form-control"
-                        value={form.hora || ""}
-                        onChange={handleInput}
-                        required
-                      />
-                    </div>
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Aula</label>
-                      <input
-                        name="aula"
-                        className="form-control"
-                        value={form.aula || ""}
-                        onChange={handleInput}
-                        required
-                      />
-                    </div>
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Docente Titular</label>
-                      <select
-                        name="docente_titular"
-                        className="form-select"
-                        value={form.docente_titular || ""}
-                        onChange={handleInput}
-                        required
-                      >
-                        <option value="">Seleccionar...</option>
-                        {docentes
-                          .filter((d) => d.id !== form.docente_vocal)
-                          .map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.nombre}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                    <div className="col-12 col-md-6 mb-3">
-                      <label className="form-label">Docente Vocal</label>
-                      <select
-                        name="docente_vocal"
-                        className="form-select"
-                        value={form.docente_vocal || ""}
-                        onChange={handleInput}
-                        required
-                      >
-                        <option value="">Seleccionar...</option>
-                        {docentes
-                          .filter((d) => d.id !== form.docente_titular)
-                          .map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.nombre}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
+                      <div className="d-flex flex-column flex-sm-row gap-2 mt-3">
+                        <button className="btn btn-primary" type="submit">
+                          Guardar
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          type="button"
+                          onClick={() => {
+                            setShowForm(false);
+                            setEditMesa(null);
+                            setForm({});
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                  <div className="d-flex flex-column flex-sm-row gap-2 mt-3">
-                    <button className="btn btn-primary" type="submit">
-                      Guardar
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditMesa(null);
-                        setForm({});
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* Modal de Recordatorios */}
+      {/* {showRecordatorioModal && selectedMesa && (
+        <div className="modal show d-block" tabIndex={-1} role="dialog">
+          ...
+        </div>
+      )}
+
+      {showRecordatorioModal && (
+        <div
+          className="modal-backdrop fade show"
+          onClick={handleCloseRecordatorioModal}
+        ></div>
+      )} */}
     </div>
   );
 };

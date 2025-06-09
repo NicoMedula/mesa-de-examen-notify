@@ -1,4 +1,5 @@
 import { Mesa } from "../types";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 // Interfaz para el cliente de base de datos
 export interface DatabaseClient {
@@ -26,25 +27,23 @@ export interface DatabaseClient {
 // Patrón Repository: Encapsula el acceso a los datos de mesas
 export class MesaRepository {
   private static instance: MesaRepository;
-  private db: DatabaseClient;
+  private db: SupabaseClient;
 
-  /* istanbul ignore next */
-  private constructor(db?: DatabaseClient) {
-    if (db) {
-      this.db = db;
-    } else {
-      // Solo importar y usar Supabase en producción
-      const { supabase } = require("../config/supabase");
-      this.db = supabase;
-    }
+  constructor(db: SupabaseClient) {
+    this.db = db;
   }
 
-  public static getInstance(db?: DatabaseClient): MesaRepository {
+  public static getInstance(db?: SupabaseClient): MesaRepository {
     if (!MesaRepository.instance) {
-      MesaRepository.instance = new MesaRepository(db);
-    } else if (db) {
-      // Permitir actualizar el cliente de base de datos para pruebas
-      MesaRepository.instance.db = db;
+      let dbInstance: SupabaseClient;
+      if (!db) {
+        // Solo importar y usar Supabase en producción
+        const { supabase } = require("../config/supabase");
+        dbInstance = supabase;
+      } else {
+        dbInstance = db;
+      }
+      MesaRepository.instance = new MesaRepository(dbInstance);
     }
     return MesaRepository.instance;
   }
@@ -149,7 +148,7 @@ export class MesaRepository {
 
       // Verificar conflictos de horario para los docentes
       for (const docente of mesa.docentes) {
-        const docenteId = docente.id;
+        const _docenteId = docente.id;
 
         // Buscar otras mesas donde este docente está asignado
         const existingMesasResult = await this.db.from("mesas").select("*");
@@ -223,7 +222,10 @@ export class MesaRepository {
     mesaActualizada: Partial<Mesa>
   ): Promise<Mesa> {
     // Actualiza solo la mesa con el id indicado
-    const { error } = await this.db.from("mesas").update(this.adaptMesaToDB(mesaActualizada)).eq("id", mesaId);
+    const { error } = await this.db
+      .from("mesas")
+      .update(this.adaptMesaToDB(mesaActualizada))
+      .eq("id", mesaId);
     if (error) {
       throw new Error(error.message || "Error al actualizar la mesa");
     }
@@ -254,15 +256,26 @@ export class MesaRepository {
       }
 
       // Verificamos que el docente exista en la mesa
-      const docenteExiste = mesa.docentes.some(d => d.id === docenteId);
+      const docenteExiste = mesa.docentes.some((d) => d.id === docenteId);
       if (!docenteExiste) {
         throw new Error("El docente no está asignado a esta mesa");
       }
 
       // Actualizamos la confirmación del docente en el array de docentes
-      const docentesActualizados = mesa.docentes.map((docente) =>
-        docente.id === docenteId ? { ...docente, confirmacion } : docente
-      );
+      const ahora = new Date().toISOString();
+      const docentesActualizados = mesa.docentes.map((docente) => {
+        if (docente.id === docenteId) {
+          return {
+            ...docente,
+            confirmacion,
+            confirmacionHora:
+              confirmacion === "aceptado" || confirmacion === "rechazado"
+                ? ahora
+                : undefined,
+          };
+        }
+        return docente;
+      });
 
       // Actualizamos en la base de datos
       const { error } = await this.db
@@ -272,7 +285,9 @@ export class MesaRepository {
 
       if (error) {
         console.error("Error al actualizar la confirmación:", error);
-        throw new Error("Error al actualizar la confirmación en la base de datos");
+        throw new Error(
+          "Error al actualizar la confirmación en la base de datos"
+        );
       }
 
       // Obtener la mesa actualizada

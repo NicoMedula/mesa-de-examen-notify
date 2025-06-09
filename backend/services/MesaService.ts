@@ -13,20 +13,25 @@ import {
 // Patrón Dependency Injection: Se puede inyectar la estrategia deseada
 export class MesaService {
   private static instance: MesaService;
-  private mesaRepository: MesaRepository;
-  // La estrategia se declara con el tipo de la interfaz, no una clase concreta
-  // Esto permite inyectar diferentes implementaciones
   private notificacionStrategy: NotificacionStrategy;
+  private mesaRepository: MesaRepository;
 
-  private constructor() {
+  constructor(notificacionStrategy: NotificacionStrategy) {
     this.mesaRepository = MesaRepository.getInstance();
-    // Inicialmente se asigna una estrategia por defecto, pero esto puede cambiarse más adelante
-    this.notificacionStrategy = WebSocketNotificacionStrategy.getInstance();
+    this.notificacionStrategy = notificacionStrategy;
   }
 
-  public static getInstance(): MesaService {
+  public static getInstance(
+    notificacionStrategy?: NotificacionStrategy
+  ): MesaService {
     if (!MesaService.instance) {
-      MesaService.instance = new MesaService();
+      let strategy: NotificacionStrategy;
+      if (!notificacionStrategy) {
+        strategy = WebSocketNotificacionStrategy.getInstance();
+      } else {
+        strategy = notificacionStrategy;
+      }
+      MesaService.instance = new MesaService(strategy);
     }
     return MesaService.instance;
   }
@@ -67,7 +72,6 @@ export class MesaService {
       const ambosAceptaron = mesa.docentes.every(
         (d) => d.confirmacion === "aceptado"
       );
-      /* istanbul ignore next */
       if (ambosAceptaron) {
         // Notificar a ambos docentes y al departamento
         const idsDocentes = mesa.docentes.map((d) => d.id);
@@ -78,7 +82,9 @@ export class MesaService {
           ),
           destinatarios: idsDocentes,
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDocentes);
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDocentes
+        );
         // Notificar al departamento (puedes personalizar el destinatario si tienes uno)
         const notificacionDepartamento = {
           ...NotificacionFactory.crearNotificacionActualizacion(
@@ -87,9 +93,11 @@ export class MesaService {
           ),
           destinatarios: ["departamento"],
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);/* istanbul ignore next */
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDepartamento
+        );
       }
-        /* istanbul ignore next */
+
       // Si un docente rechaza, notificar al otro docente y al departamento
       if (confirmacion === "rechazado") {
         const otrosDocentes = mesa.docentes.filter((d) => d.id !== docenteId);
@@ -107,28 +115,21 @@ export class MesaService {
         const notificacionDepartamento = {
           ...NotificacionFactory.crearNotificacionActualizacion(
             mesa,
-            `${docente?.nombre || "Un docente"} ha rechazado la mesa. El departamento debe reasignar o cancelar.`
+            `${
+              docente?.nombre || "Un docente"
+            } ha rechazado la mesa. El departamento debe reasignar o cancelar.`
           ),
           destinatarios: ["departamento"],
         };
-        await PushNotificacionStrategy.getInstance().enviar(notificacionDepartamento);
-      }/* istanbul ignore next */
+        await PushNotificacionStrategy.getInstance().enviar(
+          notificacionDepartamento
+        );
+      }
 
       return mesa;
     } catch (error) {
       console.error("Error en confirmarMesa:", error);
       throw error;
-    }
-  }
-
-  public async enviarRecordatorio(mesaId: string): Promise<void> {
-    const mesas = await this.mesaRepository.getAllMesas();
-    const mesa = mesas.find((m) => m.id === mesaId);
-
-    if (mesa) {
-      const notificacion =
-        NotificacionFactory.crearNotificacionRecordatorio(mesa);
-      await this.notificacionStrategy.enviar(notificacion);
     }
   }
 

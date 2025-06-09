@@ -10,8 +10,8 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // Asegurarnos de que tenemos una URL de API válida
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-console.log('URL de API para login:', API_URL);
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+  console.log("URL de API para login:", API_URL);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,16 +27,16 @@ console.log('URL de API para login:', API_URL);
       }
       setLoading(true);
       console.log("Iniciando proceso de login...");
-      
+
       // Determinar el rol automáticamente basado en el correo electrónico
       let role = "docente";
       if (email.toLowerCase().trim() === "departamento@ejemplo.com") {
         role = "departamento";
       }
-      
+
       console.log(`Intentando login con email: ${email}, rol: ${role}`);
       console.log(`URL completa: ${API_URL}/api/login`);
-      
+
       // Primero verificamos que la API esté accesible
       try {
         const pingResponse = await fetch(`${API_URL}/api/push/status`, {
@@ -45,7 +45,7 @@ console.log('URL de API para login:', API_URL);
             "Content-Type": "application/json",
           },
         });
-        
+
         if (pingResponse.ok) {
           console.log("API está accesible, procediendo con el login");
         } else {
@@ -55,20 +55,22 @@ console.log('URL de API para login:', API_URL);
         console.error("Error al verificar estado de API:", pingError);
         // Continuamos con el login de todas formas
       }
-      
+
       const response = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({ email, password, role }),
         mode: "cors",
       });
-      
+
       // Para debugging
-      console.log(`Respuesta del servidor: ${response.status} ${response.statusText}`);
-      
+      console.log(
+        `Respuesta del servidor: ${response.status} ${response.statusText}`
+      );
+
       let data;
       try {
         data = await response.json();
@@ -76,12 +78,12 @@ console.log('URL de API para login:', API_URL);
         console.error("Error al parsear respuesta JSON:", e);
         throw new Error("Error al procesar la respuesta del servidor");
       }
-      
+
       if (!response.ok) {
         console.error("Error de login:", data);
         throw new Error(data.error || "Error al iniciar sesión");
       }
-      
+
       console.log("Login exitoso:", data);
       // Guardar datos de sesión
       sessionStorage.clear();
@@ -110,6 +112,18 @@ console.log('URL de API para login:', API_URL);
     <div className="container-fluid my-3 my-md-5">
       <div className="row justify-content-center">
         <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+          <div className="d-flex flex-column align-items-center mb-3">
+            <img
+              src="/image/logoUCP.png"
+              alt="Logo UCP"
+              style={{
+                height: 100,
+                width: "auto",
+                maxWidth: 220,
+                objectFit: "contain",
+              }}
+            />
+          </div>
           <div className="card shadow">
             <div className="card-body p-3 p-md-4">
               <h2 className="card-title text-center mb-4">Iniciar Sesión</h2>
@@ -143,24 +157,7 @@ console.log('URL de API para login:', API_URL);
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                  <div className="mt-1 text-end">
-                    <Link
-                      to="/forgot-password"
-                      className="text-decoration-none small"
-                    >
-                      ¿Olvidó su contraseña?
-                    </Link>
-                  </div>
                 </div>
-                {/* Mensaje informativo */}
-                <div className="mb-3">
-                  <small className="form-text text-muted">
-                    Para departamento use: departamento@ejemplo.com
-                    <br />
-                    Para docentes use su correo electrónico institucional
-                  </small>
-                </div>
-
                 <div className="d-grid gap-2">
                   <button
                     type="submit"

@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { MesaController } from "../controllers/MesaController";
 import { supabase } from "../config/supabase";
-import autenticarJWT from "../middleware/autenticacion";
+// import autenticarJWT from "../middleware/autenticacion"; // Not used currently
 
 const router = Router();
-const mesaController = MesaController.getInstance();
 
 router.get("/docente/:id/mesas", (req, res) => {
   // Forzar headers para asegurar respuesta JSON
@@ -14,7 +13,7 @@ router.get("/docente/:id/mesas", (req, res) => {
 
   // Protección contra errores de la ruta
   try {
-    mesaController.getMesasByDocenteId(req, res);
+    MesaController.getInstance().getMesasByDocenteId(req, res);
   } catch (error: any) {
     console.error("Error en ruta /docente/:id/mesas:", error);
     res.status(500).json({
@@ -25,23 +24,25 @@ router.get("/docente/:id/mesas", (req, res) => {
 });
 
 router.post("/mesa/:mesaId/docente/:docenteId/confirmar", (req, res) =>
-  mesaController.confirmarMesa(req, res)
-);
-
-router.post("/mesa/:mesaId/recordatorio", (req, res) =>
-  mesaController.enviarRecordatorio(req, res)
+  MesaController.getInstance().confirmarMesa(req, res)
 );
 
 // Ruta para obtener todas las mesas - accesible para departamento y docentes
-router.get("/mesas", (req, res) => mesaController.getAllMesas(req, res));
+router.get("/mesas", (req, res) =>
+  MesaController.getInstance().getAllMesas(req, res)
+);
 
 // Rutas de creación, actualización y eliminación - solo para departamento
-router.post("/mesas", (req, res) => mesaController.createMesa(req, res));
+router.post("/mesas", (req, res) =>
+  MesaController.getInstance().createMesa(req, res)
+);
 
-router.put("/mesas/:mesaId", (req, res) => mesaController.updateMesa(req, res));
+router.put("/mesas/:mesaId", (req, res) =>
+  MesaController.getInstance().updateMesa(req, res)
+);
 
 router.delete("/mesas/:mesaId", (req, res) =>
-  mesaController.deleteMesa(req, res)
+  MesaController.getInstance().deleteMesa(req, res)
 );
 
 router.get("/docentes", (req, res) => {

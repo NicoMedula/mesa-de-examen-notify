@@ -1,2 +1,46 @@
-ignore:
-  - package-lock.json
+engines:
+  eslint:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      threshold: 15
+  coverage:
+    enabled: true
+  bandit:
+    enabled: false
+  semgrep:
+    enabled: false
+
+exclude_paths:
+  - "package-lock.json"
+  - "yarn.lock"
+  - "node_modules/**"
+  - "dist/**"
+  - "coverage/**"
+  - "e2e/**"
+  - "frontend/**"
+  - "playwright-report/**"
+  - "test-results/**"
+  - "*.test.ts"
+  - "*.spec.ts"
+  - "**/__tests__/**"
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "*.config.js"
+  - "*.config.ts"
+  - "jest.config.js"
+  - "playwright.config.ts"
+
+coverage:
+  range:
+    - 75
+    - 95
+
+issues:
+  exclude_patterns:
+    - "**/*.test.ts"
+    - "**/*.spec.ts"
+    - "**/__tests__/**"
+    - "**/test-*"
+    - "**/mock-*"
