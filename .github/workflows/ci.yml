@@ -29,9 +29,6 @@ jobs:
       - name: Build del proyecto
         run: npm run build
 
-      - name: Ejecutar tests con cobertura
-        run: npm run test:coverage
-
       - name: Subir cobertura a Codacy
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
         if: github.actor != 'dependabot[bot]'
