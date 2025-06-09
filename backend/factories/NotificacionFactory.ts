@@ -2,7 +2,7 @@ import { Mesa, Docente } from "../types";
 
 export interface Notificacion {
   mensaje: string;
-  tipo: "confirmacion" | "recordatorio" | "actualizacion";
+  tipo: "confirmacion" | "actualizacion";
   timestamp: Date;
 }
 
@@ -15,14 +15,6 @@ export class NotificacionFactory {
     return {
       mensaje: `El docente ${docente.nombre} ha ${docente.confirmacion} la mesa del ${mesa.fecha} a las ${mesa.hora}`,
       tipo: "confirmacion",
-      timestamp: new Date(),
-    };
-  }
-
-  public static crearNotificacionRecordatorio(mesa: Mesa): Notificacion {
-    return {
-      mensaje: `Recordatorio: Mesa de examen el ${mesa.fecha} a las ${mesa.hora} en ${mesa.aula}`,
-      tipo: "recordatorio",
       timestamp: new Date(),
     };
   }

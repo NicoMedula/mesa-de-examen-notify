@@ -121,17 +121,6 @@ export class MesaController {
     }
   }
 
-  public async enviarRecordatorio(req: Request, res: Response): Promise<void> {
-    try {
-      const { mesaId } = req.params;
-      await this.mesaService.enviarRecordatorio(mesaId);
-      res.json({ message: "Recordatorio enviado correctamente" });
-    } catch (error) {
-      console.error("Error en enviarRecordatorio:", error);
-      res.status(500).json({ error: "Error al enviar el recordatorio" });
-    }
-  }
-
   public async createMesa(req: Request, res: Response): Promise<void> {
     try {
       console.log("Recibida solicitud para crear mesa:", req.body);

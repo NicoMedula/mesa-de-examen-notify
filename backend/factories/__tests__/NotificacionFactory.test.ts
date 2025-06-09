@@ -19,15 +19,6 @@ describe("NotificacionFactory", () => {
     expect(notif.timestamp).toBeInstanceOf(Date);
   });
 
-  it("debería crear una notificación de recordatorio", () => {
-    const notif = NotificacionFactory.crearNotificacionRecordatorio(
-      mesa as any
-    );
-    expect(notif.mensaje).toContain("Recordatorio");
-    expect(notif.tipo).toBe("recordatorio");
-    expect(notif.timestamp).toBeInstanceOf(Date);
-  });
-
   it("debería crear una notificación de actualización", () => {
     const notif = NotificacionFactory.crearNotificacionActualizacion(
       mesa as any,

@@ -21,7 +21,9 @@ export class MesaService {
     this.notificacionStrategy = notificacionStrategy;
   }
 
-  public static getInstance(notificacionStrategy?: NotificacionStrategy): MesaService {
+  public static getInstance(
+    notificacionStrategy?: NotificacionStrategy
+  ): MesaService {
     if (!MesaService.instance) {
       let strategy: NotificacionStrategy;
       if (!notificacionStrategy) {
@@ -128,38 +130,6 @@ export class MesaService {
     } catch (error) {
       console.error("Error en confirmarMesa:", error);
       throw error;
-    }
-  }
-
-  public async enviarRecordatorio(mesaId: string): Promise<void> {
-    const mesas = await this.mesaRepository.getAllMesas();
-    const mesa = mesas.find((m) => m.id === mesaId);
-
-    if (
-      mesa &&
-      mesa.estado === "confirmada" &&
-      mesa.docentes &&
-      mesa.docentes.length >= 2
-    ) {
-      // Obtener solo los IDs de los docentes titular y vocal (los dos primeros docentes)
-      const docentesIds = mesa.docentes
-        .slice(0, 2)
-        .map((docente) => docente.id);
-
-      const notificacion = {
-        ...NotificacionFactory.crearNotificacionRecordatorio(mesa),
-        destinatarios: docentesIds, // Especificar que solo se envíe a estos docentes
-      };
-
-      console.log(
-        `Enviando recordatorio para mesa ${mesaId} a docentes:`,
-        docentesIds
-      );
-      await this.notificacionStrategy.enviar(notificacion);
-    } else {
-      console.log(
-        `No se pudo enviar recordatorio: Mesa ${mesaId} no encontrada, no confirmada o sin docentes asignados`
-      );
     }
   }
 
