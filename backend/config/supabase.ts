@@ -13,20 +13,25 @@ if (!supabaseUrl || !supabaseServiceKey) {
   );
 }
 
-// Crear cliente de Supabase con opciones para mejorar el debugging
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-  },
-  global: {
-    fetch: (...args) => {
-      // @ts-ignore
-      console.log(`Fetch a Supabase:`, args[0]?.toString());
-      return fetch(...args);
+// Función para crear el cliente de Supabase
+export const createSupabaseClient = (url: string, key: string) => {
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
     },
-  },
-});
+    global: {
+      fetch: (...args) => {
+        // @ts-ignore
+        console.log(`Fetch a Supabase:`, args[0]?.toString());
+        return fetch(...args);
+      },
+    },
+  });
+};
+
+// Crear cliente de Supabase con opciones para mejorar el debugging
+export const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey);
 
 // Verificar conexión inmediatamente
 (async () => {
