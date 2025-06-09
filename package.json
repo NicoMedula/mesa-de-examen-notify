@@ -13,8 +13,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
+    "lint": "eslint backend --ext .ts",
+    "lint:fix": "eslint backend --ext .ts --fix",
     "format": "prettier --write \"backend/**/*.ts\""
   },
   "keywords": [

@@ -23,6 +23,10 @@ describe("autenticarJWT", () => {
     res.json({ ok: true });
   });
 
+  app.get("/protegida", autenticarJWT(["docente"]), (req, res) => {
+    res.json({ ok: true });
+  });
+
   it("debería rechazar si no hay token", async () => {
     const res = await request(app).get("/protegido");
     expect(res.status).toBe(401);
@@ -53,9 +57,11 @@ describe("autenticarJWT", () => {
   });
 
   it("deniega acceso con token expirado", async () => {
-    const token = jwt.sign({ rol: "docente", nombre: "Juan" }, SECRET, { expiresIn: '1ms' });
+    const token = jwt.sign({ rol: "docente", nombre: "Juan" }, MOCK_SECRET, {
+      expiresIn: "1ms",
+    });
     // Esperamos 2ms para asegurar que el token expire
-    await new Promise(resolve => setTimeout(resolve, 2));
+    await new Promise((resolve) => setTimeout(resolve, 2));
     const res = await request(app)
       .get("/protegida")
       .set("Authorization", `Bearer ${token}`);
@@ -73,7 +79,7 @@ describe("autenticarJWT", () => {
   });
 
   it("deniega acceso con token que no tiene campo rol", async () => {
-    const token = jwt.sign({ nombre: "Juan" }, SECRET);
+    const token = jwt.sign({ nombre: "Juan" }, MOCK_SECRET);
     const res = await request(app)
       .get("/protegida")
       .set("Authorization", `Bearer ${token}`);
@@ -82,7 +88,7 @@ describe("autenticarJWT", () => {
   });
 
   it("deniega acceso con token que no es un objeto", async () => {
-    const token = jwt.sign("string", SECRET);
+    const token = jwt.sign("string", MOCK_SECRET);
     const res = await request(app)
       .get("/protegida")
       .set("Authorization", `Bearer ${token}`);
