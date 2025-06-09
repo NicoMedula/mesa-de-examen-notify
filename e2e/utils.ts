@@ -48,8 +48,9 @@ export async function createMesa(
     .selectOption({ index: 1 });
   await page.locator('select[name="docente_vocal"]').selectOption({ index: 1 });
   await page.getByRole("button", { name: "Guardar" }).click();
-  // Esperar a que la fila aparezca
-  const row = page.locator("tr", { has: page.getByText(mesaData.materia) });
+  // Esperar a que la fila aparezca usando un selector más específico
+  const searchText = `${mesaData.materia}.*${mesaData.fecha}.*${mesaData.hora}`;
+  const row = page.locator("tr").filter({ hasText: new RegExp(searchText) });
   await expect(row).toBeVisible({ timeout: 15000 });
   return row;
 }
